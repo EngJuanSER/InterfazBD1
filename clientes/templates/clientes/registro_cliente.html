@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro Cliente</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .card {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            margin-top: 30px;
+        }
+        .btn-buscar {
+            padding: 0.375rem 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="mb-0"><i class="bi bi-person-plus-fill"></i> Registro Cliente</h3>
+                    </div>
+                    <div class="card-body">
+                        <!-- Mensajes de éxito o error -->
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+
+                        <form method="post" id="clienteForm">
+                            {% csrf_token %}
+                            
+                            <!-- Código Cliente con botón de búsqueda -->
+                            <div class="row mb-3">
+                                <label for="id_codCliente" class="col-sm-3 col-form-label fw-bold">
+                                    Código Cliente:
+                                </label>
+                                <div class="col-sm-7">
+                                    {{ form.codCliente }}
+                                </div>
+                                <div class="col-sm-2">
+                                    <button type="button" class="btn btn-secondary btn-buscar w-100" id="btnBuscar" title="Buscar cliente">
+                                        🔍
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Nombre -->
+                            <div class="row mb-3">
+                                <label for="id_nomCliente" class="col-sm-3 col-form-label fw-bold">
+                                    Nombre:
+                                </label>
+                                <div class="col-sm-9">
+                                    {{ form.nomCliente }}
+                                </div>
+                            </div>
+
+                            <!-- Apellido -->
+                            <div class="row mb-3">
+                                <label for="id_apellCliente" class="col-sm-3 col-form-label fw-bold">
+                                    Apellido:
+                                </label>
+                                <div class="col-sm-9">
+                                    {{ form.apellCliente }}
+                                </div>
+                            </div>
+
+                            <!-- Tipo Documento -->
+                            <div class="row mb-3">
+                                <label for="id_idTipoDoc" class="col-sm-3 col-form-label fw-bold">
+                                    Tipo Documento:
+                                </label>
+                                <div class="col-sm-9">
+                                    {{ form.idTipoDoc }}
+                                </div>
+                            </div>
+
+                            <!-- Número Documento -->
+                            <div class="row mb-3">
+                                <label for="id_nDocumento" class="col-sm-3 col-form-label fw-bold">
+                                    Número Documento:
+                                </label>
+                                <div class="col-sm-9">
+                                    {{ form.nDocumento }}
+                                </div>
+                            </div>
+
+                            <!-- Botones -->
+                            <div class="row mt-4">
+                                <div class="col-sm-12 text-center">
+                                    <button type="submit" class="btn btn-success btn-lg px-5">
+                                        <i class="bi bi-save"></i> Guardar
+                                    </button>
+                                    <button type="reset" class="btn btn-warning btn-lg px-5 ms-3" id="btnLimpiar">
+                                        <i class="bi bi-x-circle"></i> Limpiar
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Función para buscar cliente
+        document.getElementById('btnBuscar').addEventListener('click', function() {
+            const codigo = document.getElementById('id_codCliente').value.trim();
+            
+            if (!codigo) {
+                alert('Por favor ingrese un código de cliente');
+                return;
+            }
+
+            // Mostrar loading
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+            fetch(`/clientes/buscar/?codigo=${encodeURIComponent(codigo)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.existe) {
+                        // Llenar los campos con los datos del cliente
+                        document.getElementById('id_nomCliente').value = data.nomCliente;
+                        document.getElementById('id_apellCliente').value = data.apellCliente;
+                        document.getElementById('id_idTipoDoc').value = data.idTipoDoc;
+                        document.getElementById('id_nDocumento').value = data.nDocumento;
+                        
+                        // Mostrar mensaje de éxito
+                        showAlert('Cliente encontrado exitosamente', 'success');
+                    } else {
+                        // Limpiar campos si no existe
+                        document.getElementById('id_nomCliente').value = '';
+                        document.getElementById('id_apellCliente').value = '';
+                        document.getElementById('id_nDocumento').value = '';
+                        
+                        showAlert(data.mensaje || 'Cliente no encontrado', 'warning');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('Error al buscar cliente. Por favor intente nuevamente.', 'danger');
+                })
+                .finally(() => {
+                    // Restaurar botón
+                    this.disabled = false;
+                    this.innerHTML = '🔍';
+                });
+        });
+
+        // Función para limpiar el formulario
+        document.getElementById('btnLimpiar').addEventListener('click', function() {
+            // Bootstrap ya limpia el formulario con type="reset"
+            // Podemos agregar lógica adicional si es necesario
+        });
+
+        // Función para mostrar alertas
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.role = 'alert';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            const form = document.getElementById('clienteForm');
+            form.parentNode.insertBefore(alertDiv, form);
+            
+            // Auto-cerrar después de 5 segundos
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
+        }
+
+        // Permitir buscar con Enter en el campo de código
+        document.getElementById('id_codCliente').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('btnBuscar').click();
+            }
+        });
+    </script>
+</body>
+</html>
