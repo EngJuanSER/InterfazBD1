@@ -13,6 +13,14 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 from decouple import config
+import oracledb
+
+# Inicializar oracledb en modo thick para soportar versiones antiguas de Oracle
+try:
+    oracledb.init_oracle_client()
+    print("✓ Oracle Client inicializado en modo thick")
+except Exception as e:
+    print(f"⚠ No se pudo inicializar Oracle Client (modo thin será usado): {e}")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent

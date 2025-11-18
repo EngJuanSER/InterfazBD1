@@ -1,5 +1,5 @@
 # Dependencias principales
-django==5.2.8
+django>=5.1.0
 oracledb>=2.0.0
 
 # Dependencias para producción

@@ -100,10 +100,13 @@
                             <!-- Botones -->
                             <div class="row mt-4">
                                 <div class="col-sm-12 text-center">
-                                    <button type="submit" class="btn btn-success btn-lg px-5">
+                                    <button type="submit" class="btn btn-success btn-lg px-4">
                                         <i class="bi bi-save"></i> Guardar
                                     </button>
-                                    <button type="reset" class="btn btn-warning btn-lg px-5 ms-3" id="btnLimpiar">
+                                    <button type="button" class="btn btn-danger btn-lg px-4 ms-2" id="btnEliminar" style="display: none;">
+                                        <i class="bi bi-trash"></i> Eliminar
+                                    </button>
+                                    <button type="button" class="btn btn-warning btn-lg px-4 ms-2" id="btnLimpiar">
                                         <i class="bi bi-x-circle"></i> Limpiar
                                     </button>
                                 </div>
@@ -140,15 +143,29 @@
                         document.getElementById('id_idTipoDoc').value = data.idTipoDoc;
                         document.getElementById('id_nDocumento').value = data.nDocumento;
                         
+                        // Hacer el código de solo lectura para evitar cambios accidentales
+                        document.getElementById('id_codCliente').readOnly = true;
+                        document.getElementById('id_codCliente').style.backgroundColor = '#e9ecef';
+                        
+                        // Mostrar botón de eliminar
+                        document.getElementById('btnEliminar').style.display = 'inline-block';
+                        
                         // Mostrar mensaje de éxito
-                        showAlert('Cliente encontrado exitosamente', 'success');
+                        showAlert('✓ Cliente encontrado. Puede modificar los datos y guardar para actualizar, o eliminarlo.', 'success');
                     } else {
                         // Limpiar campos si no existe
                         document.getElementById('id_nomCliente').value = '';
                         document.getElementById('id_apellCliente').value = '';
                         document.getElementById('id_nDocumento').value = '';
                         
-                        showAlert(data.mensaje || 'Cliente no encontrado', 'warning');
+                        // Asegurarse de que el código sea editable
+                        document.getElementById('id_codCliente').readOnly = false;
+                        document.getElementById('id_codCliente').style.backgroundColor = '';
+                        
+                        // Ocultar botón de eliminar
+                        document.getElementById('btnEliminar').style.display = 'none';
+                        
+                        showAlert(data.mensaje || 'Cliente no encontrado. Puede crear un nuevo registro con este código.', 'info');
                     }
                 })
                 .catch(error => {
@@ -163,9 +180,37 @@
         });
 
         // Función para limpiar el formulario
-        document.getElementById('btnLimpiar').addEventListener('click', function() {
-            // Bootstrap ya limpia el formulario con type="reset"
-            // Podemos agregar lógica adicional si es necesario
+        document.getElementById('btnLimpiar').addEventListener('click', function(e) {
+            e.preventDefault(); // Prevenir el comportamiento por defecto
+            
+            // Limpiar todos los campos del formulario
+            document.getElementById('id_codCliente').value = '';
+            document.getElementById('id_nomCliente').value = '';
+            document.getElementById('id_apellCliente').value = '';
+            document.getElementById('id_nDocumento').value = '';
+            
+            // Resetear el select de tipo de documento al primer valor (vacío)
+            const tipoDocSelect = document.getElementById('id_idTipoDoc');
+            tipoDocSelect.selectedIndex = 0;
+            
+            // Quitar readonly del código si estaba puesto
+            document.getElementById('id_codCliente').readOnly = false;
+            document.getElementById('id_codCliente').style.backgroundColor = '';
+            
+            // Ocultar botón de eliminar
+            document.getElementById('btnEliminar').style.display = 'none';
+            
+            // Remover cualquier clase de validación
+            const inputs = document.querySelectorAll('.form-control, .form-select');
+            inputs.forEach(input => {
+                input.classList.remove('is-invalid', 'is-valid');
+            });
+            
+            // Opcional: Mostrar mensaje de confirmación
+            showAlert('✓ Formulario limpiado', 'info');
+            
+            // Enfocar el primer campo
+            document.getElementById('id_codCliente').focus();
         });
 
         // Función para mostrar alertas
@@ -186,6 +231,63 @@
                 alertDiv.remove();
             }, 5000);
         }
+
+        // Función para eliminar cliente
+        document.getElementById('btnEliminar').addEventListener('click', function() {
+            const codigo = document.getElementById('id_codCliente').value.trim();
+            
+            if (!codigo) {
+                showAlert('No hay cliente seleccionado para eliminar', 'warning');
+                return;
+            }
+
+            // Confirmar eliminación
+            const nombre = document.getElementById('id_nomCliente').value;
+            const apellido = document.getElementById('id_apellCliente').value;
+            const confirmacion = confirm(`¿Está seguro de eliminar al cliente "${codigo}" - ${nombre} ${apellido}?\n\nEsta acción no se puede deshacer.`);
+            
+            if (!confirmacion) {
+                return;
+            }
+
+            // Deshabilitar botón y mostrar loading
+            this.disabled = true;
+            const textoOriginal = this.innerHTML;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Eliminando...';
+
+            // Obtener token CSRF
+            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            // Realizar petición de eliminación
+            fetch('/clientes/eliminar/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrftoken
+                },
+                body: `codigo=${encodeURIComponent(codigo)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert(`✓ ${data.mensaje}`, 'success');
+                    
+                    // Limpiar el formulario después de eliminar
+                    document.getElementById('btnLimpiar').click();
+                } else {
+                    showAlert(`❌ Error: ${data.error}`, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Error al eliminar el cliente. Por favor intente nuevamente.', 'danger');
+            })
+            .finally(() => {
+                // Restaurar botón
+                this.disabled = false;
+                this.innerHTML = textoOriginal;
+            });
+        });
 
         // Permitir buscar con Enter en el campo de código
         document.getElementById('id_codCliente').addEventListener('keypress', function(e) {
