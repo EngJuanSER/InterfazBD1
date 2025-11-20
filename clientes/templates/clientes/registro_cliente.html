@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registro Cliente</title>
+    <title>Registro Cliente - Sistema de Abogados</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
@@ -23,10 +23,10 @@
 <body>
     <div class="container">
         <div class="row justify-content-center">
-            <div class="col-md-8">
+            <div class="col-md-10">
                 <div class="card">
                     <div class="card-header bg-primary text-white">
-                        <h3 class="mb-0"><i class="bi bi-person-plus-fill"></i> Registro Cliente</h3>
+                        <h3 class="mb-0"><i class="bi bi-person-plus-fill"></i> Registro de Cliente</h3>
                     </div>
                     <div class="card-body">
                         <!-- Mensajes de éxito o error -->
@@ -42,13 +42,16 @@
                         <form method="post" id="clienteForm">
                             {% csrf_token %}
                             
-                            <!-- Código Cliente con botón de búsqueda -->
+                            <!-- Campo oculto para el ID del cliente (usado en actualizaciones) -->
+                            <input type="hidden" name="cliente_id" id="hidden_cliente_id" value="">
+                            
+                            <!-- ID Cliente con botón de búsqueda -->
                             <div class="row mb-3">
-                                <label for="id_codCliente" class="col-sm-3 col-form-label fw-bold">
-                                    Código Cliente:
+                                <label for="id_cliente_id" class="col-sm-3 col-form-label fw-bold">
+                                    ID Cliente:
                                 </label>
                                 <div class="col-sm-7">
-                                    {{ form.codCliente }}
+                                    <input type="number" name="cliente_id" id="id_cliente_id" class="form-control" placeholder="Ingrese ID del cliente para buscar">
                                 </div>
                                 <div class="col-sm-2">
                                     <button type="button" class="btn btn-secondary btn-buscar w-100" id="btnBuscar" title="Buscar cliente">
@@ -57,43 +60,73 @@
                                 </div>
                             </div>
 
-                            <!-- Nombre -->
+                            <!-- Número de Documento -->
                             <div class="row mb-3">
-                                <label for="id_nomCliente" class="col-sm-3 col-form-label fw-bold">
-                                    Nombre:
+                                <label for="id_n_documento_cliente" class="col-sm-3 col-form-label fw-bold">
+                                    <span class="text-danger">*</span> Número Documento:
                                 </label>
                                 <div class="col-sm-9">
-                                    {{ form.nomCliente }}
-                                </div>
-                            </div>
-
-                            <!-- Apellido -->
-                            <div class="row mb-3">
-                                <label for="id_apellCliente" class="col-sm-3 col-form-label fw-bold">
-                                    Apellido:
-                                </label>
-                                <div class="col-sm-9">
-                                    {{ form.apellCliente }}
+                                    {{ form.n_documento_cliente }}
                                 </div>
                             </div>
 
                             <!-- Tipo Documento -->
                             <div class="row mb-3">
-                                <label for="id_idTipoDoc" class="col-sm-3 col-form-label fw-bold">
-                                    Tipo Documento:
+                                <label for="id_id_tipo_doc" class="col-sm-3 col-form-label fw-bold">
+                                    <span class="text-danger">*</span> Tipo Documento:
                                 </label>
                                 <div class="col-sm-9">
-                                    {{ form.idTipoDoc }}
+                                    {{ form.id_tipo_doc }}
                                 </div>
                             </div>
 
-                            <!-- Número Documento -->
+                            <!-- Nombre -->
                             <div class="row mb-3">
-                                <label for="id_nDocumento" class="col-sm-3 col-form-label fw-bold">
-                                    Número Documento:
+                                <label for="id_nombre_cliente" class="col-sm-3 col-form-label fw-bold">
+                                    <span class="text-danger">*</span> Nombre:
                                 </label>
                                 <div class="col-sm-9">
-                                    {{ form.nDocumento }}
+                                    {{ form.nombre_cliente }}
+                                </div>
+                            </div>
+
+                            <!-- Apellido -->
+                            <div class="row mb-3">
+                                <label for="id_apellido_cliente" class="col-sm-3 col-form-label fw-bold">
+                                    <span class="text-danger">*</span> Apellido:
+                                </label>
+                                <div class="col-sm-9">
+                                    {{ form.apellido_cliente }}
+                                </div>
+                            </div>
+
+                            <!-- Dirección de Notificación -->
+                            <div class="row mb-3">
+                                <label for="id_direccion_notificacion" class="col-sm-3 col-form-label fw-bold">
+                                    Dirección:
+                                </label>
+                                <div class="col-sm-9">
+                                    {{ form.direccion_notificacion }}
+                                </div>
+                            </div>
+
+                            <!-- Fecha de Nacimiento -->
+                            <div class="row mb-3">
+                                <label for="id_fecha_nacimiento" class="col-sm-3 col-form-label fw-bold">
+                                    Fecha Nacimiento:
+                                </label>
+                                <div class="col-sm-9">
+                                    {{ form.fecha_nacimiento }}
+                                </div>
+                            </div>
+
+                            <!-- Observaciones -->
+                            <div class="row mb-3">
+                                <label for="id_observaciones" class="col-sm-3 col-form-label fw-bold">
+                                    Observaciones:
+                                </label>
+                                <div class="col-sm-9">
+                                    {{ form.observaciones }}
                                 </div>
                             </div>
 
@@ -120,12 +153,12 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Función para buscar cliente
+        // Función para buscar cliente por ID
         document.getElementById('btnBuscar').addEventListener('click', function() {
-            const codigo = document.getElementById('id_codCliente').value.trim();
+            const clienteId = document.getElementById('id_cliente_id').value.trim();
             
-            if (!codigo) {
-                alert('Por favor ingrese un código de cliente');
+            if (!clienteId) {
+                alert('Por favor ingrese un ID de cliente');
                 return;
             }
 
@@ -133,39 +166,50 @@
             this.disabled = true;
             this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
 
-            fetch(`/clientes/buscar/?codigo=${encodeURIComponent(codigo)}`)
+            fetch(`/clientes/buscar/?id=${encodeURIComponent(clienteId)}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.existe) {
-                        // Llenar los campos con los datos del cliente
-                        document.getElementById('id_nomCliente').value = data.nomCliente;
-                        document.getElementById('id_apellCliente').value = data.apellCliente;
-                        document.getElementById('id_idTipoDoc').value = data.idTipoDoc;
-                        document.getElementById('id_nDocumento').value = data.nDocumento;
+                        // Establecer el ID en el campo oculto para actualización
+                        document.getElementById('hidden_cliente_id').value = data.cliente_id;
                         
-                        // Hacer el código de solo lectura para evitar cambios accidentales
-                        document.getElementById('id_codCliente').readOnly = true;
-                        document.getElementById('id_codCliente').style.backgroundColor = '#e9ecef';
+                        // Llenar los campos con los datos del cliente
+                        document.getElementById('id_nombre_cliente').value = data.nombre_cliente;
+                        document.getElementById('id_apellido_cliente').value = data.apellido_cliente;
+                        document.getElementById('id_id_tipo_doc').value = data.id_tipo_doc;
+                        document.getElementById('id_n_documento_cliente').value = data.n_documento_cliente;
+                        document.getElementById('id_direccion_notificacion').value = data.direccion_notificacion;
+                        document.getElementById('id_fecha_nacimiento').value = data.fecha_nacimiento;
+                        document.getElementById('id_observaciones').value = data.observaciones;
+                        
+                        // Bloquear el campo ID para evitar cambios accidentales
+                        // Para editar otro cliente, debe usar "Limpiar" primero
+                        document.getElementById('id_cliente_id').readOnly = true;
+                        document.getElementById('id_cliente_id').style.backgroundColor = '#d1f4d1';
+                        document.getElementById('id_cliente_id').style.cursor = 'not-allowed';
                         
                         // Mostrar botón de eliminar
                         document.getElementById('btnEliminar').style.display = 'inline-block';
                         
                         // Mostrar mensaje de éxito
-                        showAlert('✓ Cliente encontrado. Puede modificar los datos y guardar para actualizar, o eliminarlo.', 'success');
+                        showAlert('✓ Cliente encontrado. Puede modificar los datos y guardar. Para buscar otro cliente use "Limpiar" primero.', 'success');
                     } else {
                         // Limpiar campos si no existe
-                        document.getElementById('id_nomCliente').value = '';
-                        document.getElementById('id_apellCliente').value = '';
-                        document.getElementById('id_nDocumento').value = '';
+                        document.getElementById('id_nombre_cliente').value = '';
+                        document.getElementById('id_apellido_cliente').value = '';
+                        document.getElementById('id_n_documento_cliente').value = '';
+                        document.getElementById('id_direccion_notificacion').value = '';
+                        document.getElementById('id_fecha_nacimiento').value = '';
+                        document.getElementById('id_observaciones').value = '';
                         
-                        // Asegurarse de que el código sea editable
-                        document.getElementById('id_codCliente').readOnly = false;
-                        document.getElementById('id_codCliente').style.backgroundColor = '';
+                        // Asegurarse de que el ID sea editable
+                        document.getElementById('id_cliente_id').readOnly = false;
+                        document.getElementById('id_cliente_id').style.backgroundColor = '';
                         
                         // Ocultar botón de eliminar
                         document.getElementById('btnEliminar').style.display = 'none';
                         
-                        showAlert(data.mensaje || 'Cliente no encontrado. Puede crear un nuevo registro con este código.', 'info');
+                        showAlert(data.mensaje || 'Cliente no encontrado con ese ID.', 'info');
                     }
                 })
                 .catch(error => {
@@ -181,21 +225,27 @@
 
         // Función para limpiar el formulario
         document.getElementById('btnLimpiar').addEventListener('click', function(e) {
-            e.preventDefault(); // Prevenir el comportamiento por defecto
+            e.preventDefault();
             
             // Limpiar todos los campos del formulario
-            document.getElementById('id_codCliente').value = '';
-            document.getElementById('id_nomCliente').value = '';
-            document.getElementById('id_apellCliente').value = '';
-            document.getElementById('id_nDocumento').value = '';
+            document.getElementById('hidden_cliente_id').value = '';
+            document.getElementById('id_cliente_id').value = '';
+            document.getElementById('id_n_documento_cliente').value = '';
+            document.getElementById('id_nombre_cliente').value = '';
+            document.getElementById('id_apellido_cliente').value = '';
+            document.getElementById('id_direccion_notificacion').value = '';
+            document.getElementById('id_fecha_nacimiento').value = '';
+            document.getElementById('id_observaciones').value = '';
             
-            // Resetear el select de tipo de documento al primer valor (vacío)
-            const tipoDocSelect = document.getElementById('id_idTipoDoc');
+            // Resetear el select de tipo de documento al primer valor
+            const tipoDocSelect = document.getElementById('id_id_tipo_doc');
             tipoDocSelect.selectedIndex = 0;
             
-            // Quitar readonly del código si estaba puesto
-            document.getElementById('id_codCliente').readOnly = false;
-            document.getElementById('id_codCliente').style.backgroundColor = '';
+            // Desbloquear el campo ID completamente
+            const idField = document.getElementById('id_cliente_id');
+            idField.readOnly = false;
+            idField.style.backgroundColor = '';
+            idField.style.cursor = '';
             
             // Ocultar botón de eliminar
             document.getElementById('btnEliminar').style.display = 'none';
@@ -206,11 +256,10 @@
                 input.classList.remove('is-invalid', 'is-valid');
             });
             
-            // Opcional: Mostrar mensaje de confirmación
             showAlert('✓ Formulario limpiado', 'info');
             
             // Enfocar el primer campo
-            document.getElementById('id_codCliente').focus();
+            document.getElementById('id_cliente_id').focus();
         });
 
         // Función para mostrar alertas
@@ -234,17 +283,17 @@
 
         // Función para eliminar cliente
         document.getElementById('btnEliminar').addEventListener('click', function() {
-            const codigo = document.getElementById('id_codCliente').value.trim();
+            const clienteId = document.getElementById('id_cliente_id').value.trim();
             
-            if (!codigo) {
+            if (!clienteId) {
                 showAlert('No hay cliente seleccionado para eliminar', 'warning');
                 return;
             }
 
             // Confirmar eliminación
-            const nombre = document.getElementById('id_nomCliente').value;
-            const apellido = document.getElementById('id_apellCliente').value;
-            const confirmacion = confirm(`¿Está seguro de eliminar al cliente "${codigo}" - ${nombre} ${apellido}?\n\nEsta acción no se puede deshacer.`);
+            const nombre = document.getElementById('id_nombre_cliente').value;
+            const apellido = document.getElementById('id_apellido_cliente').value;
+            const confirmacion = confirm(`¿Está seguro de eliminar al cliente "${nombre} ${apellido}" (ID: ${clienteId})?\n\nEsta acción no se puede deshacer.`);
             
             if (!confirmacion) {
                 return;
@@ -265,7 +314,7 @@
                     'Content-Type': 'application/x-www-form-urlencoded',
                     'X-CSRFToken': csrftoken
                 },
-                body: `codigo=${encodeURIComponent(codigo)}`
+                body: `id=${encodeURIComponent(clienteId)}`
             })
             .then(response => response.json())
             .then(data => {
@@ -289,8 +338,8 @@
             });
         });
 
-        // Permitir buscar con Enter en el campo de código
-        document.getElementById('id_codCliente').addEventListener('keypress', function(e) {
+        // Permitir buscar con Enter en el campo de ID
+        document.getElementById('id_cliente_id').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 document.getElementById('btnBuscar').click();

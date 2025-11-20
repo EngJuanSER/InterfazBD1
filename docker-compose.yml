@@ -1,0 +1,50 @@
+services:
+  # Servicio de Oracle Database
+  oracle-db:
+    image: gvenzl/oracle-free:latest
+    container_name: oracle-23c
+    environment:
+      - ORACLE_PASSWORD=oracle
+      - APP_USER=abogado
+      - APP_USER_PASSWORD=abogado123
+    ports:
+      - "1521:1521"
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+      - ./scripts:/container-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - interfazbd-network
+
+  # Servicio de Django
+  django-app:
+    build: .
+    container_name: django-interfazbd
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DB_NAME=oracle-db:1521/FREEPDB1
+      - DB_USER=abogado
+      - DB_PASSWORD=abogado123
+      - DEBUG=True
+      - ALLOWED_HOSTS=localhost,127.0.0.1,django-app
+    depends_on:
+      oracle-db:
+        condition: service_healthy
+    networks:
+      - interfazbd-network
+
+volumes:
+  oracle-data:
+
+networks:
+  interfazbd-network:
+    driver: bridge

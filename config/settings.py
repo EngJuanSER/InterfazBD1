@@ -85,13 +85,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Configuración para Oracle Database usando variables de entorno
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.oracle',
-        'NAME': config('DB_NAME', default='localhost:1521/XEPDB1'),
-        'USER': config('DB_USER', default='django_user'),
-        'PASSWORD': config('DB_PASSWORD', default=''),
+        'NAME': config('DB_NAME', default='localhost:1522/FREEPDB1'),
+        'USER': config('DB_USER', default='abogado'),
+        'PASSWORD': config('DB_PASSWORD', default='abogado123'),
     }
 }
 
