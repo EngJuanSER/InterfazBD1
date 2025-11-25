@@ -45,8 +45,11 @@ ewallet.pem
 tnsnames.ora
 sqlnet.ora
 
-
+# Documentacion
+/documentos/*.*
 RAILWAY_DEPLOY.md
 
 
 
+
+README_SUSTENTACION.md

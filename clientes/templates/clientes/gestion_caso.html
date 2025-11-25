@@ -1,0 +1,245 @@
+{% extends 'clientes/base.html' %}
+
+{% block title %}Gestion de Casos{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-search"></i> Buscar Cliente</h5>
+            </div>
+            <div class="card-body">
+                <form id="search-form" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Nombre</label>
+                        <input type="text" class="form-control" id="search_nombre" placeholder="Nombre">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Apellido</label>
+                        <input type="text" class="form-control" id="search_apellido" placeholder="Apellido">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="button" class="btn btn-secondary w-100" onclick="buscarCliente()">
+                            <i class="bi bi-search"></i> Buscar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Client Results Modal -->
+        <div class="modal fade" id="clientModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Seleccionar Cliente</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="list-group" id="client-results"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4" id="client-details" style="display:none;">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-person"></i> Datos del Cliente</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label class="fw-bold">Nombre Completo:</label>
+                        <p id="client-name"></p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="fw-bold">Documento:</label>
+                        <p id="client-doc"></p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="fw-bold">ID Cliente:</label>
+                        <p id="client-id-display"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="case-section" style="display:none;">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-briefcase"></i> Gestion de Caso</h5>
+                <button class="btn btn-light btn-sm" onclick="showNewCaseForm()">
+                    <i class="bi bi-plus-circle"></i> Nuevo Caso
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Seleccionar Caso Existente:</label>
+                        <select class="form-select" id="case-select" onchange="loadCaseDetails(this.value)">
+                            <option value="">-- Seleccione un caso --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="case-details-view" style="display:none;">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label class="fw-bold">No. Caso:</label>
+                            <p id="view-case-id"></p>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="fw-bold">Especializacion:</label>
+                            <p id="view-case-spec"></p>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="fw-bold">Fecha Inicio:</label>
+                            <p id="view-case-date"></p>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="fw-bold">Valor:</label>
+                            <p id="view-case-value"></p>
+                        </div>
+                    </div>
+                    <div class="alert alert-info mt-2">
+                        <i class="bi bi-info-circle"></i> Solo consulta. Para gestionar el expediente, vaya a la pestaña
+                        "Gestion Expedientes".
+                    </div>
+                </div>
+
+                <form id="new-case-form" method="POST" action="{% url 'crear_caso' %}" style="display:none;">
+                    {% csrf_token %}
+                    <input type="hidden" name="cod_cliente" id="form-client-id">
+                    <h6 class="border-bottom pb-2 mb-3">Crear Nuevo Caso</h6>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Especializacion</label>
+                            <select class="form-select" name="cod_especializacion" required>
+                                {% for esp in especializaciones %}
+                                <option value="{{ esp.codespecializacion }}">{{ esp.nomespecializacion }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Fecha Inicio</label>
+                            <input type="date" class="form-control" name="fecha_inicio" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Valor</label>
+                            <input type="number" class="form-control" name="valor" required>
+                        </div>
+                        <div class="col-12 mt-3">
+                            <button type="submit" class="btn btn-success">Guardar Caso</button>
+                            <button type="button" class="btn btn-secondary"
+                                onclick="hideNewCaseForm()">Cancelar</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function buscarCliente() {
+        const nombre = document.getElementById('search_nombre').value;
+        const apellido = document.getElementById('search_apellido').value;
+
+        fetch(`{% url 'buscar_cliente_api' %}?nombre=${nombre}&apellido=${apellido}`)
+            .then(response => response.json())
+            .then(data => {
+                const resultsDiv = document.getElementById('client-results');
+                resultsDiv.innerHTML = '';
+
+                if (data.length === 0) {
+                    alert('No se encontraron clientes');
+                    return;
+                }
+
+                if (data.length === 1) {
+                    selectClient(data[0]);
+                } else {
+                    data.forEach(client => {
+                        const btn = document.createElement('button');
+                        btn.className = 'list-group-item list-group-item-action';
+                        // Note: Keys are lowercase from dictfetchall
+                        btn.textContent = `${client.nomcliente} ${client.apellcliente} (${client.ndocumento})`;
+                        btn.onclick = () => {
+                            selectClient(client);
+                            var modal = bootstrap.Modal.getInstance(document.getElementById('clientModal'));
+                            modal.hide();
+                        };
+                        resultsDiv.appendChild(btn);
+                    });
+                    new bootstrap.Modal(document.getElementById('clientModal')).show();
+                }
+            });
+    }
+
+    function selectClient(client) {
+        document.getElementById('client-details').style.display = 'block';
+        document.getElementById('case-section').style.display = 'block';
+
+        document.getElementById('client-name').textContent = `${client.nomcliente} ${client.apellcliente}`;
+        document.getElementById('client-doc').textContent = client.ndocumento;
+        document.getElementById('client-id-display').textContent = client.codcliente;
+        document.getElementById('form-client-id').value = client.codcliente;
+
+        loadCases(client.codcliente);
+    }
+
+    function loadCases(clientId) {
+        fetch(`{% url 'listar_casos_api' %}?cliente_id=${clientId}`)
+            .then(response => response.json())
+            .then(data => {
+                const select = document.getElementById('case-select');
+                select.innerHTML = '<option value="">-- Seleccione un caso --</option>';
+                data.forEach(caso => {
+                    const option = document.createElement('option');
+                    option.value = caso.nocaso;
+                    option.textContent = `Caso #${caso.nocaso} - ${caso.especializacion} (${caso.fechainicio})`;
+                    option.dataset.details = JSON.stringify(caso);
+                    select.appendChild(option);
+                });
+
+                // Auto-select active case if exists
+                const activeCase = data.find(c => !c.fechafin);
+                if (activeCase) {
+                    select.value = activeCase.nocaso;
+                    loadCaseDetails(activeCase.nocaso);
+                }
+            });
+    }
+
+    function loadCaseDetails(caseId) {
+        if (!caseId) {
+            document.getElementById('case-details-view').style.display = 'none';
+            return;
+        }
+
+        const select = document.getElementById('case-select');
+        const option = select.options[select.selectedIndex];
+        const details = JSON.parse(option.dataset.details);
+
+        document.getElementById('view-case-id').textContent = details.nocaso;
+        document.getElementById('view-case-spec').textContent = details.especializacion;
+        document.getElementById('view-case-date').textContent = details.fechainicio;
+        document.getElementById('view-case-value').textContent = details.valor;
+
+        document.getElementById('case-details-view').style.display = 'block';
+        document.getElementById('new-case-form').style.display = 'none';
+    }
+
+    function showNewCaseForm() {
+        document.getElementById('case-details-view').style.display = 'none';
+        document.getElementById('new-case-form').style.display = 'block';
+        document.getElementById('case-select').value = "";
+    }
+
+    function hideNewCaseForm() {
+        document.getElementById('new-case-form').style.display = 'none';
+    }
+</script>
+{% endblock %}

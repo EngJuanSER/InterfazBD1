@@ -1,0 +1,197 @@
+{% extends 'clientes/base.html' %}
+
+{% block title %}Gestion de Expedientes{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4 d-print-none">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-folder2-open"></i> Buscar Expediente de Caso</h5>
+            </div>
+            <div class="card-body">
+                <form class="row g-3" method="GET">
+                    <div class="col-md-6">
+                        <label class="form-label">Numero de Caso</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" name="caso_id" value="{{ caso.nocaso }}"
+                                placeholder="Ingrese ID del Caso">
+                            <button class="btn btn-secondary" type="submit">Buscar</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if caso %}
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Informacion del Caso #{{ caso.nocaso }}</h5>
+                <button class="btn btn-light btn-sm d-print-none" onclick="window.print()">
+                    <i class="bi bi-printer"></i> Imprimir
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label class="fw-bold">Cliente:</label>
+                        <p>{{ caso.nomcliente }} {{ caso.apellcliente }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="fw-bold">Especializacion:</label>
+                        <p>{{ caso.nomespecializacion }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="fw-bold">Estado:</label>
+                        <p>{% if caso.fechafin %}Cerrado{% else %}Activo{% endif %}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div
+                class="card-header bg-secondary text-white d-flex justify-content-between align-items-center d-print-none">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Historial de Etapas (Expediente)</h5>
+                {% if not caso.fechafin %}
+                {% if etapas_disponibles %}
+                <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#newStageModal">
+                    <i class="bi bi-plus-circle"></i>
+                    {% if expedientes %}Siguiente Etapa{% else %}Crear Primera Etapa{% endif %}
+                </button>
+                {% else %}
+                <span class="badge bg-warning text-dark">No hay mas etapas disponibles</span>
+                {% endif %}
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Consec.</th>
+                                <th>Etapa</th>
+                                <th>Instancia</th>
+                                <th>Fecha</th>
+                                <th>Lugar</th>
+                                <th>Abogado</th>
+                                <th>Documentos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for exp in expedientes %}
+                            <tr>
+                                <td>{{ exp.consecexpe }}</td>
+                                <td>{{ exp.etapa_nombre }}</td>
+                                <td>{{ exp.ninstancia }}</td>
+                                <td>{{ exp.fechaetapa }}</td>
+                                <td>{{ exp.nomlugar }}</td>
+                                <td>{{ exp.abogado_nombre }}</td>
+                                <td>
+                                    {% if exp.ubicadoc %}
+                                    <a href="#" class="badge bg-primary text-decoration-none"><i
+                                            class="bi bi-file-earmark-pdf"></i> {{ exp.ubicadoc }}</a>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center">No hay etapas registradas</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- New Stage Modal -->
+{% if caso and not caso.fechafin and etapas_disponibles %}
+<div class="modal fade" id="newStageModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'crear_etapa' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="caso_id" value="{{ caso.nocaso }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Registrar Etapa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Etapa Procesal (Siguiente)</label>
+                            <select class="form-select" name="id_especia_etapa" required>
+                                {% for etapa in etapas_disponibles %}
+                                <option value="{{ etapa.id_especia_etapa }}">
+                                    {{ etapa.nometapa }}
+                                    (Instancia {{ etapa.ninstancia }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Abogado Responsable</label>
+                            <select class="form-select" name="cedula" required>
+                                {% for abg in abogados %}
+                                <option value="{{ abg.cedula }}">{{ abg.nombre }} {{ abg.apellido }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Lugar / Entidad</label>
+                            <select class="form-select" name="cod_lugar" required>
+                                {% for lugar in lugares %}
+                                <option value="{{ lugar.codlugar }}">{{ lugar.nomlugar }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Fecha Etapa</label>
+                            <input type="date" class="form-control" name="fecha_etapa" value="{% now 'Y-m-d' %}"
+                                required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Adjuntar Documento (PDF)</label>
+                            <input type="file" class="form-control" name="documento" accept=".pdf">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Descripcion del Suceso</label>
+                            <textarea class="form-control" name="desc_suceso" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Etapa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<style>
+    @media print {
+        .d-print-none {
+            display: none !important;
+        }
+
+        .card {
+            border: none !important;
+            shadow: none !important;
+        }
+
+        .card-header {
+            background-color: white !important;
+            color: black !important;
+            border-bottom: 2px solid black !important;
+        }
+    }
+</style>
+{% endblock %}
