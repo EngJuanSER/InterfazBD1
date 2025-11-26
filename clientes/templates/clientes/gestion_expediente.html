@@ -248,6 +248,11 @@
     let editorCampoActual = null;
 
     function abrirEditor(campo) {
+        // Solo permitir abrir el editor si hay expediente cargado y el caso está abierto
+        if (!expedienteActual || (casoActual && casoActual.fechafin)) {
+            mostrarAlerta('No se puede editar. Seleccione un expediente abierto.', 'warning');
+            return;
+        }
         editorCampoActual = campo;
         let titulo = campo === 'suceso' ? 'Editar Suceso' : 'Editar Resultado';
         document.getElementById('modalEditorTitulo').innerText = titulo;
@@ -260,13 +265,26 @@
             let textos = Array.from(resultadoContainer.querySelectorAll('small')).map(e => e.innerText);
             document.getElementById('editorTexto').value = textos.join('\n---\n');
         }
+        // El textarea solo es editable si el caso está abierto
+        const editorTexto = document.getElementById('editorTexto');
+        if (casoActual && casoActual.fechafin) {
+            editorTexto.readOnly = true;
+        } else {
+            editorTexto.readOnly = false;
+        }
         var modal = new bootstrap.Modal(document.getElementById('modalEditor'));
         modal.show();
     }
 
     document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('btnGuardarEditor').onclick = function() {
-            const texto = document.getElementById('editorTexto').value;
+            // Solo guardar si el textarea no es readOnly
+            const editorTexto = document.getElementById('editorTexto');
+            if (editorTexto.readOnly) {
+                bootstrap.Modal.getInstance(document.getElementById('modalEditor')).hide();
+                return;
+            }
+            const texto = editorTexto.value;
             if (editorCampoActual === 'suceso') {
                 const sucesoContainer = document.getElementById('sucesoContainer');
                 sucesoContainer.innerHTML = texto.split('\n---\n').map(t => `<div class=\"mb-2 p-1 border-bottom\"><small>${t}</small></div>`).join('');
@@ -278,6 +296,13 @@
             }
             bootstrap.Modal.getInstance(document.getElementById('modalEditor')).hide();
         };
+        // Botón cancelar: solo cierra el modal, no modifica nada
+        const btnCancelar = document.querySelector('#modalEditor .btn-secondary');
+        if (btnCancelar) {
+            btnCancelar.onclick = function() {
+                bootstrap.Modal.getInstance(document.getElementById('modalEditor')).hide();
+            };
+        }
 
         // Mostrar lista de PDFs seleccionados y permitir visualizarlos
         document.getElementById('documentoInput').addEventListener('change', function() {
@@ -513,34 +538,47 @@
 
         console.log('Cargando expediente:', expedienteActual); // DEBUG
 
-        // Llenar campos
-        document.getElementById('noetapa').value = expedienteActual.ninstancia || '';
-        document.getElementById('fechaetapa').value = expedienteActual.fechaapertura || '';
-        document.getElementById('nombreetapa').value = expedienteActual.estadoexpediente || '';
-        document.getElementById('instancia').value = expedienteActual.ninstancia || '';
+        // Refuerzo: Validar existencia de elementos antes de asignar
+        const campoNoEtapa = document.getElementById('noetapa');
+        if (campoNoEtapa) campoNoEtapa.value = expedienteActual.ninstancia || '';
+
+        const campoFechaEtapa = document.getElementById('fechaetapa');
+        if (campoFechaEtapa) campoFechaEtapa.value = expedienteActual.fechaapertura || '';
+
+        const campoNombreEtapa = document.getElementById('nombreetapa');
+        if (campoNombreEtapa) campoNombreEtapa.value = expedienteActual.estadoexpediente || '';
+
+        const campoInstancia = document.getElementById('instancia');
+        if (campoInstancia) campoInstancia.value = expedienteActual.ninstancia || '';
 
         // Lógica dinámica de instancia/impugnación al cargar expediente
-        actualizarInstanciaEImpugnacion(
-            expedienteActual.estadoexpediente,
-            expedienteActual.codespecializacion,
-            expedienteActual.ninstancia
-        );
+        if (typeof actualizarInstanciaEImpugnacion === 'function') {
+            actualizarInstanciaEImpugnacion(
+                expedienteActual.estadoexpediente,
+                expedienteActual.codespecializacion,
+                expedienteActual.ninstancia
+            );
+        }
 
         // Seleccionar abogado si existe
-        if (expedienteActual.cedula) {
-            document.getElementById('abogado').value = expedienteActual.cedula;
-        } else {
-            document.getElementById('abogado').value = '';
+        const campoAbogado = document.getElementById('abogado');
+        if (campoAbogado) {
+            if (expedienteActual.cedula) {
+                campoAbogado.value = expedienteActual.cedula;
+            } else {
+                campoAbogado.value = '';
+            }
         }
 
         // Si hay composite keys, cargar detalles completos
-        if (expedienteActual.consecexpe) {
+        if (expedienteActual.consecexpe && typeof cargarDetalleExpediente === 'function') {
             cargarDetalleExpediente(expedienteActual);
         }
 
         // Deshabilitar campos en modo consulta
         habilitarCampos(false);
-        document.getElementById('btnGuardar').disabled = true;
+        const btnGuardar = document.getElementById('btnGuardar');
+        if (btnGuardar) btnGuardar.disabled = true;
     }
 
 
@@ -628,16 +666,20 @@
 
         // Fecha inicio = hoy, NO MODIFICABLE (Req d.iii)
         const fechaInput = document.getElementById('fechaetapa');
-        fechaInput.value = new Date().toISOString().split('T')[0];
-        fechaInput.disabled = true;
+        if (fechaInput) {
+            fechaInput.value = new Date().toISOString().split('T')[0];
+            fechaInput.disabled = true;
+        }
 
         // Cargar primera etapa de la especialización
         fetch("{% url 'clientes:obtener_primera_etapa' %}?codespecializacion=" + encodeURIComponent(casoActual.codespecializacion))
             .then(response => response.json())
             .then(etapaData => {
                 if (etapaData.success) {
-                    document.getElementById('noetapa').value = etapaData.etapa.ORDEN || 1;
-                    document.getElementById('nombreetapa').value = etapaData.etapa.NOMETAPA || '';
+                    const campoNoEtapa = document.getElementById('noetapa');
+                    if (campoNoEtapa) campoNoEtapa.value = etapaData.etapa.ORDEN || 1;
+                    const campoNombreEtapa = document.getElementById('nombreetapa');
+                    if (campoNombreEtapa) campoNombreEtapa.value = etapaData.etapa.NOMETAPA || '';
 
                     // Lógica dinámica de instancia/impugnación al crear nuevo expediente
                     actualizarInstanciaEImpugnacion(
@@ -651,26 +693,41 @@
             });
 
         // Limpiar areas de texto
-        document.getElementById('suceso').value = '';
-        document.getElementById('resultadoContainer').innerHTML = '<small class="text-muted">Sin resultados</small>';
-        document.getElementById('listaDocumentos').innerHTML = '<small class="text-muted">Sin documentos</small>';
+        const campoSuceso = document.getElementById('suceso');
+        if (campoSuceso) campoSuceso.value = '';
+        const resultadoContainer = document.getElementById('resultadoContainer');
+        if (resultadoContainer) resultadoContainer.innerHTML = '<small class="text-muted">Sin resultados</small>';
+        const listaDocumentos = document.getElementById('listaDocumentos');
+        if (listaDocumentos) listaDocumentos.innerHTML = '<small class="text-muted">Sin documentos</small>';
 
-        document.getElementById('btnGuardar').disabled = false;
+        const btnGuardar = document.getElementById('btnGuardar');
+        if (btnGuardar) btnGuardar.disabled = false;
 
         mostrarAlerta('Complete los datos del nuevo expediente', 'info');
     }
 
     function habilitarCampos(habilitar) {
-        document.getElementById('fechaetapa').disabled = !habilitar;
-        document.getElementById('instancia').disabled = !habilitar;
-        document.getElementById('abogado').disabled = !habilitar;
-        document.getElementById('ciudad').disabled = !habilitar;
-        document.getElementById('entidad').disabled = !habilitar;
-        document.getElementById('impugnacion').disabled = !habilitar;
-        document.getElementById('suceso').disabled = !habilitar;
-        document.getElementById('uploadContainer').style.display = habilitar ? 'block' : 'none';
-        document.getElementById('documentoInput').disabled = !habilitar;
-        if (!habilitar) document.getElementById('documentoInput').value = ''; // Limpiar si se deshabilita
+        const campoFechaEtapa = document.getElementById('fechaetapa');
+        if (campoFechaEtapa) campoFechaEtapa.disabled = !habilitar;
+        const campoInstancia = document.getElementById('instancia');
+        if (campoInstancia) campoInstancia.disabled = !habilitar;
+        const campoAbogado = document.getElementById('abogado');
+        if (campoAbogado) campoAbogado.disabled = !habilitar;
+        const campoCiudad = document.getElementById('ciudad');
+        if (campoCiudad) campoCiudad.disabled = !habilitar;
+        const campoEntidad = document.getElementById('entidad');
+        if (campoEntidad) campoEntidad.disabled = !habilitar;
+        const campoImpugnacion = document.getElementById('impugnacion');
+        if (campoImpugnacion) campoImpugnacion.disabled = !habilitar;
+        const campoSuceso = document.getElementById('suceso');
+        if (campoSuceso) campoSuceso.disabled = !habilitar;
+        const uploadContainer = document.getElementById('uploadContainer');
+        if (uploadContainer) uploadContainer.style.display = habilitar ? 'block' : 'none';
+        const documentoInput = document.getElementById('documentoInput');
+        if (documentoInput) {
+            documentoInput.disabled = !habilitar;
+            if (!habilitar) documentoInput.value = '';
+        }
     }
 
     function cargarEntidades() {
@@ -783,24 +840,41 @@
     }
 
     function limpiarCamposExpediente() {
-        document.getElementById('noexpediente').innerHTML = '<option value="">-- Sin expedientes --</option>';
-        document.getElementById('noexpediente').disabled = true;
-        document.getElementById('noetapa').value = '';
-        document.getElementById('fechaetapa').value = '';
-        document.getElementById('nombreetapa').value = '';
-        document.getElementById('instancia').value = '';
-        document.getElementById('abogado').value = '';
-        document.getElementById('ciudad').value = '';
-        document.getElementById('entidad').innerHTML = '<option value="">-- Seleccione ciudad primero --</option>';
-        document.getElementById('impugnacion').value = '';
-        document.getElementById('suceso').value = '';
-        document.getElementById('resultadoContainer').innerHTML = '<small class="text-muted">Sin resultados</small>';
-        document.getElementById('listaDocumentos').innerHTML = '<small class="text-muted">Sin documentos</small>';
+        const campoNoExpediente = document.getElementById('noexpediente');
+        if (campoNoExpediente) {
+            campoNoExpediente.innerHTML = '<option value="">-- Sin expedientes --</option>';
+            campoNoExpediente.disabled = true;
+        }
+        const campoNoEtapa = document.getElementById('noetapa');
+        if (campoNoEtapa) campoNoEtapa.value = '';
+        const campoFechaEtapa = document.getElementById('fechaetapa');
+        if (campoFechaEtapa) campoFechaEtapa.value = '';
+        const campoNombreEtapa = document.getElementById('nombreetapa');
+        if (campoNombreEtapa) campoNombreEtapa.value = '';
+        const campoInstancia = document.getElementById('instancia');
+        if (campoInstancia) campoInstancia.value = '';
+        const campoAbogado = document.getElementById('abogado');
+        if (campoAbogado) campoAbogado.value = '';
+        const campoCiudad = document.getElementById('ciudad');
+        if (campoCiudad) campoCiudad.value = '';
+        const campoEntidad = document.getElementById('entidad');
+        if (campoEntidad) campoEntidad.innerHTML = '<option value="">-- Seleccione ciudad primero --</option>';
+        const campoImpugnacion = document.getElementById('impugnacion');
+        if (campoImpugnacion) campoImpugnacion.value = '';
+        const campoSuceso = document.getElementById('suceso');
+        if (campoSuceso) campoSuceso.value = '';
+        const resultadoContainer = document.getElementById('resultadoContainer');
+        if (resultadoContainer) resultadoContainer.innerHTML = '<small class="text-muted">Sin resultados</small>';
+        const listaDocumentos = document.getElementById('listaDocumentos');
+        if (listaDocumentos) listaDocumentos.innerHTML = '<small class="text-muted">Sin documentos</small>';
 
         habilitarCampos(false);
-        document.getElementById('btnGuardar').disabled = true;
-        document.getElementById('btnPrevEtapa').disabled = true;
-        document.getElementById('btnNextEtapa').disabled = true;
+        const btnGuardar = document.getElementById('btnGuardar');
+        if (btnGuardar) btnGuardar.disabled = true;
+        const btnPrevEtapa = document.getElementById('btnPrevEtapa');
+        if (btnPrevEtapa) btnPrevEtapa.disabled = true;
+        const btnNextEtapa = document.getElementById('btnNextEtapa');
+        if (btnNextEtapa) btnNextEtapa.disabled = true;
 
         expedienteActual = null;
         modoNuevoExpediente = false;
@@ -822,29 +896,46 @@ function actualizarInstanciaEImpugnacion(etapa, codespecializacion, ninstancia) 
     const instanciaSelect = document.getElementById('instancia');
     const impugnacionSelect = document.getElementById('impugnacion');
     // Por defecto, ambos deshabilitados y en null
-    instanciaSelect.value = '';
-    instanciaSelect.disabled = true;
-    impugnacionSelect.value = '';
-    impugnacionSelect.disabled = true;
+    if (instanciaSelect) {
+        instanciaSelect.value = '';
+        instanciaSelect.disabled = true;
+    }
+    if (impugnacionSelect) {
+        impugnacionSelect.value = '';
+        impugnacionSelect.disabled = true;
+    }
 
     // Si etapa es Sentencia
     if (etapa && etapa.toLowerCase() === 'sentencia') {
-        instanciaSelect.innerHTML = '<option value="Primera">Primera</option>';
-        instanciaSelect.value = 'Primera';
-        instanciaSelect.disabled = false;
+        if (instanciaSelect) {
+            instanciaSelect.innerHTML = '<option value="Primera">Primera</option>';
+            instanciaSelect.value = 'Primera';
+            instanciaSelect.disabled = false;
+        }
     }
     // Si etapa es Impugnacion
     else if (etapa && etapa.toLowerCase().includes('impugnacion')) {
-        instanciaSelect.innerHTML = '<option value="Segunda">Segunda</option>';
-        instanciaSelect.value = 'Segunda';
-        instanciaSelect.disabled = false;
+        if (instanciaSelect) {
+            instanciaSelect.innerHTML = '<option value="Segunda">Segunda</option>';
+            instanciaSelect.value = 'Segunda';
+            instanciaSelect.disabled = false;
+        }
         // Habilitar impugnacion y cargar solo válidas
-        cargarImpugnacionesEspecializacion(codespecializacion, ninstancia);
+        if (impugnacionSelect) {
+            impugnacionSelect.disabled = false;
+            cargarImpugnacionesEspecializacion(codespecializacion, ninstancia);
+        }
     } else {
         // En cualquier otra etapa, instancia queda vacía y deshabilitada
-        instanciaSelect.innerHTML = '<option value="">-- Seleccione --</option>';
-        instanciaSelect.value = '';
-        instanciaSelect.disabled = true;
+        if (instanciaSelect) {
+            instanciaSelect.innerHTML = '<option value="">-- Seleccione --</option>';
+            instanciaSelect.value = '';
+            instanciaSelect.disabled = true;
+        }
+        if (impugnacionSelect) {
+            impugnacionSelect.value = '';
+            impugnacionSelect.disabled = true;
+        }
     }
 }
 
