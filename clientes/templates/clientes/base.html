@@ -3,54 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Sistema Juridico{% endblock %}</title>
+    <title>{% block title %}Sistema de Gestion Legal{% endblock %}</title>
+    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
-        body { background-color: #f8f9fa; }
-        .navbar-brand { font-weight: bold; color: #2c3e50 !important; }
-        .card { border: none; shadow-sm: 0 0.125rem 0.25rem rgba(0,0,0,0.075); }
+        body {
+            background-color: #f8f9fa;
+        }
+        .card {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        .card-header {
+            border-radius: 10px 10px 0 0 !important;
+        }
+        .btn-buscar {
+            padding: 0.375rem 1rem;
+        }
+        .form-label {
+            font-weight: 600;
+        }
+        .navbar-brand i {
+            margin-right: 8px;
+        }
+        .main-content {
+            padding: 20px 0;
+        }
+        /* Tabs personalizados */
+        .nav-tabs-custom {
+            border-bottom: 2px solid #dee2e6;
+        }
+        .nav-tabs-custom .nav-link {
+            border: 1px solid transparent;
+            border-top-left-radius: 0.375rem;
+            border-top-right-radius: 0.375rem;
+            font-weight: 600;
+            color: #495057;
+        }
+        .nav-tabs-custom .nav-link.active {
+            color: #0d6efd;
+            background-color: #fff;
+            border-color: #dee2e6 #dee2e6 #fff;
+        }
+        .nav-tabs-custom .nav-link:hover:not(.active) {
+            border-color: #e9ecef #e9ecef #dee2e6;
+            background-color: #e9ecef;
+        }
+        /* Campo bloqueado estilo */
+        .field-locked {
+            background-color: #d1f4d1 !important;
+            cursor: not-allowed;
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm mb-4">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand" href="#"><i class="bi bi-bank"></i> Sistema Juridico</a>
+            <a class="navbar-brand" href="{% url 'clientes:registro_cliente' %}">
+                <i class="bi bi-briefcase-fill"></i>Sistema Legal
+            </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'registro_cliente' %}">Clientes</a>
+                        <a class="nav-link {% if request.resolver_match.url_name == 'registro_cliente' %}active{% endif %}" 
+                           href="{% url 'clientes:registro_cliente' %}">
+                            <i class="bi bi-person-plus"></i> Registro Cliente
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'gestion_caso' %}">Gestion Casos</a>
+                        <a class="nav-link {% if request.resolver_match.url_name == 'gestion_caso' %}active{% endif %}" 
+                           href="{% url 'clientes:gestion_caso' %}">
+                            <i class="bi bi-briefcase"></i> Gestion Caso
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'gestion_expediente' %}">Gestion Expedientes</a>
+                        <a class="nav-link {% if request.resolver_match.url_name == 'gestion_expediente' %}active{% endif %}" 
+                           href="{% url 'clientes:gestion_expediente' %}">
+                            <i class="bi bi-folder2-open"></i> Gestion Expediente
+                        </a>
                     </li>
                 </ul>
             </div>
         </div>
     </nav>
 
-    <div class="container">
+    <!-- Main Content -->
+    <div class="container main-content">
         {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
         {% endif %}
-        
+
         {% block content %}{% endblock %}
     </div>
 
+    <!-- Bootstrap 5 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        // CSRF Token helper
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken') || '{{ csrf_token }}';
+        
+        // Alert helper
+        function mostrarAlerta(mensaje, tipo) {
+            const existente = document.querySelector('.alert-flotante');
+            if (existente) existente.remove();
+            
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-' + tipo + ' alert-dismissible fade show alert-flotante';
+            alertDiv.style.cssText = 'position:fixed;top:80px;right:20px;z-index:9999;min-width:300px;box-shadow:0 4px 6px rgba(0,0,0,0.2);';
+            alertDiv.innerHTML = mensaje + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+            document.body.appendChild(alertDiv);
+            
+            setTimeout(function() { 
+                if (alertDiv.parentNode) alertDiv.remove(); 
+            }, 4000);
+        }
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

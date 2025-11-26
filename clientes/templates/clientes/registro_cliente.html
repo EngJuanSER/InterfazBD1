@@ -1,77 +1,218 @@
 {% extends 'clientes/base.html' %}
 
-{% block title %}Registro de Clientes{% endblock %}
+{% block title %}Registro de Cliente{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-8">
+    <div class="col-lg-8">
         <div class="card">
             <div class="card-header bg-primary text-white">
-                <h4 class="mb-0"><i class="bi bi-person-plus"></i> Registro de Cliente</h4>
+                <h4 class="mb-0"><i class="bi bi-person-plus-fill me-2"></i>Registro de Cliente</h4>
             </div>
             <div class="card-body">
-                <form method="POST" class="needs-validation" novalidate>
-                    {% csrf_token %}
-
-                    <!-- Campo oculto para ID del cliente (edición) -->
-                    <input type="hidden" name="cod_cliente" value="{{ form.instance.cod_cliente|default:'' }}">
-
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label for="{{ form.nom_cliente.id_for_label }}" class="form-label">Nombre *</label>
-                            {{ form.nom_cliente }}
-                            {% if form.nom_cliente.errors %}
-                            <div class="text-danger small">{{ form.nom_cliente.errors.0 }}</div>
-                            {% endif %}
+                <form id="formCliente">
+                    <!-- Codigo Cliente con Buscar -->
+                    <div class="row mb-3">
+                        <label for="codcliente" class="col-sm-3 col-form-label">Codigo Cliente</label>
+                        <div class="col-sm-7">
+                            <input type="text" class="form-control" id="codcliente" name="codcliente" 
+                                   placeholder="Ingrese codigo del cliente" maxlength="8">
                         </div>
-
-                        <div class="col-md-6">
-                            <label for="{{ form.apell_cliente.id_for_label }}" class="form-label">Apellido *</label>
-                            {{ form.apell_cliente }}
-                            {% if form.apell_cliente.errors %}
-                            <div class="text-danger small">{{ form.apell_cliente.errors.0 }}</div>
-                            {% endif %}
-                        </div>
-
-                        <div class="col-md-6">
-                            <label for="{{ form.id_tipo_doc.id_for_label }}" class="form-label">Tipo de Documento
-                                *</label>
-                            {{ form.id_tipo_doc }}
-                            {% if form.id_tipo_doc.errors %}
-                            <div class="text-danger small">{{ form.id_tipo_doc.errors.0 }}</div>
-                            {% endif %}
-                        </div>
-
-                        <div class="col-md-6">
-                            <label for="{{ form.n_documento.id_for_label }}" class="form-label">Número de Documento
-                                *</label>
-                            {{ form.n_documento }}
-                            {% if form.n_documento.errors %}
-                            <div class="text-danger small">{{ form.n_documento.errors.0 }}</div>
-                            {% endif %}
+                        <div class="col-sm-2">
+                            <button type="button" class="btn btn-primary btn-buscar w-100" onclick="buscarCliente()">
+                                <i class="bi bi-search"></i> Buscar
+                            </button>
                         </div>
                     </div>
 
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                        <a href="{% url 'registro_cliente' %}" class="btn btn-secondary me-md-2">
-                            <i class="bi bi-eraser"></i> Limpiar
-                        </a>
-                        <button type="submit" class="btn btn-success">
-                            <i class="bi bi-save"></i> Guardar
-                        </button>
+                    <!-- Nombre -->
+                    <div class="row mb-3">
+                        <label for="nomcliente" class="col-sm-3 col-form-label">Nombre</label>
+                        <div class="col-sm-9">
+                            <input type="text" class="form-control" id="nomcliente" name="nomcliente" 
+                                   placeholder="Nombre del cliente" maxlength="50">
+                        </div>
+                    </div>
+
+                    <!-- Apellido -->
+                    <div class="row mb-3">
+                        <label for="apellcliente" class="col-sm-3 col-form-label">Apellido</label>
+                        <div class="col-sm-9">
+                            <input type="text" class="form-control" id="apellcliente" name="apellcliente" 
+                                   placeholder="Apellido del cliente" maxlength="50">
+                        </div>
+                    </div>
+
+                    <!-- Nro Documento -->
+                    <div class="row mb-3">
+                        <label for="ndocumento" class="col-sm-3 col-form-label">Nro Documento</label>
+                        <div class="col-sm-9">
+                            <input type="text" class="form-control" id="ndocumento" name="ndocumento" 
+                                   placeholder="Numero de documento" maxlength="20">
+                        </div>
+                    </div>
+
+                    <!-- Tipo Documento -->
+                    <div class="row mb-3">
+                        <label for="idtipodoc" class="col-sm-3 col-form-label">Tipo Documento</label>
+                        <div class="col-sm-9">
+                            <select class="form-select" id="idtipodoc" name="idtipodoc">
+                                <option value="">-- Seleccione --</option>
+                                {% for tipo in tipos_documento %}
+                                <option value="{{ tipo.0 }}">{{ tipo.1 }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Botones -->
+                    <div class="row">
+                        <div class="col-sm-9 offset-sm-3">
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-success btn-lg px-4" onclick="guardarCliente()">
+                                    <i class="bi bi-check-circle"></i> Guardar
+                                </button>
+                                <button type="button" class="btn btn-warning btn-lg px-4" onclick="limpiarCampos()">
+                                    <i class="bi bi-eraser"></i> Limpiar
+                                </button>
+                                <button type="button" class="btn btn-danger btn-lg px-4" onclick="eliminarCliente()" id="btnEliminar" disabled>
+                                    <i class="bi bi-trash"></i> Eliminar
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
         </div>
-
-        <div class="alert alert-info mt-4">
-            <h5><i class="bi bi-info-circle"></i> Instrucciones:</h5>
-            <ul class="mb-0">
-                <li>Los campos marcados con * son obligatorios.</li>
-                <li>Para <strong>crear</strong> un cliente, asegúrese de limpiar el formulario primero.</li>
-                <li>Para <strong>actualizar</strong>, busque el cliente primero (en Gestión Casos) y edítelo.</li>
-            </ul>
-        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let modoEdicion = false;
+
+    function buscarCliente() {
+        const codigo = document.getElementById('codcliente').value.trim();
+        if (!codigo) {
+            mostrarAlerta('Ingrese un codigo de cliente para buscar', 'warning');
+            return;
+        }
+
+        fetch("{% url 'clientes:buscar_cliente' %}?codigo=" + encodeURIComponent(codigo))
+            .then(response => response.json())
+            .then(data => {
+                if (data.encontrado) {
+                    document.getElementById('codcliente').value = data.cliente.codcliente;
+                    document.getElementById('nomcliente').value = data.cliente.nomcliente;
+                    document.getElementById('apellcliente').value = data.cliente.apellcliente;
+                    document.getElementById('ndocumento').value = data.cliente.ndocumento;
+                    document.getElementById('idtipodoc').value = data.cliente.idtipodoc;
+                    
+                    document.getElementById('codcliente').readOnly = true;
+                    document.getElementById('codcliente').classList.add('field-locked');
+                    document.getElementById('btnEliminar').disabled = false;
+                    modoEdicion = true;
+                    
+                    mostrarAlerta('Cliente encontrado. Puede modificar los datos.', 'success');
+                } else {
+                    mostrarAlerta(data.mensaje || 'Cliente no encontrado. Puede registrarlo.', 'info');
+                    document.getElementById('btnEliminar').disabled = true;
+                    modoEdicion = false;
+                }
+            })
+            .catch(error => {
+                mostrarAlerta('Error al buscar cliente: ' + error, 'danger');
+            });
+    }
+
+    function guardarCliente() {
+        const formData = {
+            codcliente: document.getElementById('codcliente').value.trim(),
+            nomcliente: document.getElementById('nomcliente').value.trim(),
+            apellcliente: document.getElementById('apellcliente').value.trim(),
+            ndocumento: document.getElementById('ndocumento').value.trim(),
+            idtipodoc: document.getElementById('idtipodoc').value
+        };
+
+        if (!formData.codcliente || !formData.nomcliente || !formData.apellcliente) {
+            mostrarAlerta('Complete los campos obligatorios (Codigo, Nombre, Apellido)', 'warning');
+            return;
+        }
+
+        fetch("{% url 'clientes:guardar_cliente' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.exito) {
+                mostrarAlerta(data.mensaje, 'success');
+                if (!modoEdicion) {
+                    document.getElementById('codcliente').readOnly = true;
+                    document.getElementById('codcliente').classList.add('field-locked');
+                    document.getElementById('btnEliminar').disabled = false;
+                    modoEdicion = true;
+                }
+            } else {
+                mostrarAlerta(data.mensaje || 'Error al guardar', 'danger');
+            }
+        })
+        .catch(error => {
+            mostrarAlerta('Error: ' + error, 'danger');
+        });
+    }
+
+    function eliminarCliente() {
+        const codigo = document.getElementById('codcliente').value.trim();
+        if (!codigo) {
+            mostrarAlerta('No hay cliente para eliminar', 'warning');
+            return;
+        }
+
+        if (!confirm('¿Esta seguro de eliminar este cliente?')) {
+            return;
+        }
+
+        fetch("{% url 'clientes:eliminar_cliente' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({codcliente: codigo})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.exito) {
+                mostrarAlerta(data.mensaje, 'success');
+                limpiarCampos();
+            } else {
+                mostrarAlerta(data.mensaje || 'Error al eliminar', 'danger');
+            }
+        })
+        .catch(error => {
+            mostrarAlerta('Error: ' + error, 'danger');
+        });
+    }
+
+    function limpiarCampos() {
+        document.getElementById('codcliente').value = '';
+        document.getElementById('nomcliente').value = '';
+        document.getElementById('apellcliente').value = '';
+        document.getElementById('ndocumento').value = '';
+        document.getElementById('idtipodoc').value = '';
+        
+        document.getElementById('codcliente').readOnly = false;
+        document.getElementById('codcliente').classList.remove('field-locked');
+        document.getElementById('btnEliminar').disabled = true;
+        modoEdicion = false;
+        
+        document.getElementById('codcliente').focus();
+    }
+</script>
 {% endblock %}

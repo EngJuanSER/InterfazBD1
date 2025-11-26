@@ -1,0 +1,97 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Impresion de Caso {{ caso.NOCASO }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        @media print {
+            .no-print {
+                display: none;
+            }
+        }
+
+        .expediente-block {
+            border-bottom: 2px solid #ccc;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body class="p-4">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Detalle del Caso #{{ caso.NOCASO }}</h1>
+            <button class="btn btn-primary no-print" onclick="window.print()">Imprimir</button>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header bg-dark text-white">Informacion General</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Cliente:</strong> {{ caso.NOMCLIENTE }} {{ caso.APELLCLIENTE }}</p>
+                        <p><strong>Documento:</strong> {{ caso.DESCTIPODOC }} {{ caso.NDOCUMENTO }}</p>
+                        <p><strong>Especializacion:</strong> {{ caso.NOMESPECIALIZACION }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Fecha Inicio:</strong> {{ caso.FECHAINICIO|date:"Y-m-d" }}</p>
+                        <p><strong>Fecha Fin:</strong> {{ caso.FECHAFIN|default:"Activo" }}</p>
+                        <p><strong>Valor:</strong> ${{ caso.VALOR }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h3>Historial del Expediente</h3>
+
+        {% for exp in expedientes %}
+        <div class="expediente-block">
+            <div class="row bg-light p-2 mb-2">
+                <div class="col-md-2"><strong>Cons:</strong> {{ exp.CONSECEXPE }}</div>
+                <div class="col-md-3"><strong>Fecha:</strong> {{ exp.FECHAETAPA }}</div>
+                <div class="col-md-3"><strong>Etapa:</strong> {{ exp.NOMETAPA }}</div>
+                <div class="col-md-4"><strong>Abogado:</strong> {{ exp.ABOGADO_NOMBRE }}</div>
+            </div>
+            <div class="row mb-2">
+                <div class="col-md-6"><strong>Entidad:</strong> {{ exp.NOMLUGAR }}</div>
+                <div class="col-md-6"><strong>Instancia:</strong> {{ exp.NINSTANCIA }}</div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Sucesos</h6>
+                    <ul>
+                        {% for suc in exp.sucesos %}
+                        <li>{{ suc.DESCSUCESO }}</li>
+                        {% empty %}
+                        <li class="text-muted">Sin sucesos</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>Resultados</h6>
+                    <ul>
+                        {% for res in exp.resultados %}
+                        <li>{{ res.DESCRESUL }}</li>
+                        {% empty %}
+                        <li class="text-muted">Sin resultados</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <p class="text-center text-muted">No hay expedientes registrados para este caso.</p>
+        {% endfor %}
+    </div>
+</body>
+
+</html>

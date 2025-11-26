@@ -8,39 +8,57 @@ class ClienteForm(forms.ModelForm):
     """
     class Meta:
         model = Cliente
-        fields = ['nom_cliente', 'apell_cliente', 'id_tipo_doc', 'n_documento']
+        fields = ['nombre_cliente', 'apellido_cliente', 'id_tipo_doc', 'n_documento_cliente', 
+                  'direccion_notificacion', 'fecha_nacimiento', 'observaciones']
         widgets = {
-            'nom_cliente': forms.TextInput(attrs={
+            'nombre_cliente': forms.TextInput(attrs={
                 'class': 'form-control',
-                'maxlength': '30',
+                'maxlength': '100',
                 'placeholder': 'Nombre del cliente'
             }),
-            'apell_cliente': forms.TextInput(attrs={
+            'apellido_cliente': forms.TextInput(attrs={
                 'class': 'form-control',
-                'maxlength': '30',
+                'maxlength': '100',
                 'placeholder': 'Apellido del cliente'
             }),
             'id_tipo_doc': forms.Select(attrs={
                 'class': 'form-select'
             }),
-            'n_documento': forms.TextInput(attrs={
+            'n_documento_cliente': forms.TextInput(attrs={
                 'class': 'form-control',
                 'maxlength': '15',
                 'placeholder': 'Número de documento'
             }),
+            'direccion_notificacion': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Dirección de notificación'
+            }),
+            'fecha_nacimiento': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'observaciones': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Observaciones adicionales'
+            }),
         }
         labels = {
-            'nom_cliente': 'Nombre',
-            'apell_cliente': 'Apellido',
+            'nombre_cliente': 'Nombre',
+            'apellido_cliente': 'Apellido',
             'id_tipo_doc': 'Tipo Documento',
-            'n_documento': 'Número Documento',
+            'n_documento_cliente': 'Número Documento',
+            'direccion_notificacion': 'Dirección de Notificación',
+            'fecha_nacimiento': 'Fecha de Nacimiento',
+            'observaciones': 'Observaciones',
         }
     
-    def clean_n_documento(self):
+    def clean_n_documento_cliente(self):
         """
         Validar que el número de documento no exista (solo para nuevos registros)
         """
-        documento = self.cleaned_data.get('n_documento')
+        documento = self.cleaned_data.get('n_documento_cliente')
         if documento:
             documento = documento.strip()
             if not documento:
@@ -49,14 +67,14 @@ class ClienteForm(forms.ModelForm):
             # Solo validar si es un nuevo registro (no una edición)
             if self.instance.pk:
                 # Es una edición, verificar si cambió el documento
-                if self.instance.n_documento != documento:
-                    if Cliente.objects.filter(n_documento=documento).exists():
+                if self.instance.n_documento_cliente != documento:
+                    if Cliente.objects.filter(n_documento_cliente=documento).exists():
                         raise forms.ValidationError(
                             f'Ya existe un cliente con el documento "{documento}".'
                         )
             else:
                 # Es un nuevo registro, verificar que no exista
-                if Cliente.objects.filter(n_documento=documento).exists():
+                if Cliente.objects.filter(n_documento_cliente=documento).exists():
                     raise forms.ValidationError(
                         f'Ya existe un cliente con el documento "{documento}".'
                     )
@@ -67,14 +85,14 @@ class ClienteForm(forms.ModelForm):
         Validaciones adicionales del formulario completo
         """
         cleaned_data = super().clean()
-        nombre = cleaned_data.get('nom_cliente')
-        apellido = cleaned_data.get('apell_cliente')
+        nombre = cleaned_data.get('nombre_cliente')
+        apellido = cleaned_data.get('apellido_cliente')
         
         # Validar que nombre y apellido no sean solo espacios
         if nombre and not nombre.strip():
-            self.add_error('nom_cliente', 'El nombre no puede estar vacío.')
+            self.add_error('nombre_cliente', 'El nombre no puede estar vacío.')
         
         if apellido and not apellido.strip():
-            self.add_error('apell_cliente', 'El apellido no puede estar vacío.')
+            self.add_error('apellido_cliente', 'El apellido no puede estar vacío.')
         
         return cleaned_data

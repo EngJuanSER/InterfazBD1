@@ -1,197 +1,883 @@
 {% extends 'clientes/base.html' %}
 
-{% block title %}Gestion de Expedientes{% endblock %}
+{% block title %}Gestion de Expediente{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-12">
-        <div class="card mb-4 d-print-none">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0"><i class="bi bi-folder2-open"></i> Buscar Expediente de Caso</h5>
+<div class="row justify-content-center">
+    <div class="col-lg-11">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0"><i class="bi bi-folder2-open me-2"></i>Gestion de Expediente</h4>
             </div>
             <div class="card-body">
-                <form class="row g-3" method="GET">
+
+                <!-- Fila Principal: Datos del Expediente -->
+                <div class="row">
+                    <!-- Columna Izquierda -->
                     <div class="col-md-6">
-                        <label class="form-label">Numero de Caso</label>
-                        <div class="input-group">
-                            <input type="number" class="form-control" name="caso_id" value="{{ caso.nocaso }}"
-                                placeholder="Ingrese ID del Caso">
-                            <button class="btn btn-secondary" type="submit">Buscar</button>
+                        <div class="card bg-light mb-3">
+                            <div class="card-body">
+                                <!-- No. Expediente con boton Crear -->
+                                <div class="row mb-3">
+                                    <div class="col-8">
+                                        <label for="noexpediente" class="form-label fw-bold">No. Expediente</label>
+                                        <select class="form-select" id="noexpediente" onchange="cargarExpediente()"
+                                            disabled>
+                                            <option value="">-- Sin expedientes --</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-4 d-flex align-items-end">
+                                        <button type="button" class="btn btn-success w-100" id="btnCrearExpe"
+                                            onclick="crearNuevoExpediente()" disabled>
+                                            <i class="bi bi-plus-circle"></i> Crear
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- No. etapa -->
+                                <div class="mb-3">
+                                    <label for="noetapa" class="form-label fw-bold">No. etapa</label>
+                                    <input type="text" class="form-control" id="noetapa" readonly
+                                        placeholder="Numero de etapa">
+                                </div>
+
+                                <!-- Fecha etapa -->
+                                <div class="mb-3">
+                                    <label for="fechaetapa" class="form-label fw-bold">Fecha etapa</label>
+                                    <input type="date" class="form-control" id="fechaetapa" disabled>
+                                </div>
+
+                                <!-- Nombre Etapa -->
+                                <div class="mb-3">
+                                    <label for="nombreetapa" class="form-label fw-bold">Nombre Etapa</label>
+                                    <input type="text" class="form-control" id="nombreetapa" readonly
+                                        placeholder="Nombre de la etapa">
+                                </div>
+
+                                <!-- Instancia -->
+                                <div class="mb-3">
+                                    <label for="instancia" class="form-label fw-bold">Instancia</label>
+                                    <select class="form-select" id="instancia" disabled>
+                                        <option value="">-- Seleccione --</option>
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </form>
-            </div>
-        </div>
 
-        {% if caso %}
-        <div class="card mb-4">
-            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Informacion del Caso #{{ caso.nocaso }}</h5>
-                <button class="btn btn-light btn-sm d-print-none" onclick="window.print()">
-                    <i class="bi bi-printer"></i> Imprimir
-                </button>
-            </div>
-            <div class="card-body">
+                    <!-- Columna Derecha -->
+                    <div class="col-md-6">
+                        <div class="card bg-light mb-3">
+                            <div class="card-body">
+                                <!-- No Caso -->
+                                <div class="mb-3">
+                                    <label for="nocaso" class="form-label fw-bold">No Caso</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="nocaso"
+                                            placeholder="Ingrese numero de caso">
+                                        <button class="btn btn-primary" type="button" onclick="buscarCaso()">
+                                            <i class="bi bi-search"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Abogado -->
+                                <div class="mb-3">
+                                    <label for="abogado" class="form-label fw-bold">Abogado</label>
+                                    <select class="form-select" id="abogado" disabled>
+                                        <option value="">-- Seleccione --</option>
+                                    </select>
+                                </div>
+
+                                <!-- Ciudad -->
+                                <div class="mb-3">
+                                    <label for="ciudad" class="form-label fw-bold">Ciudad</label>
+                                    <select class="form-select" id="ciudad" onchange="cargarEntidades()" disabled>
+                                        <option value="">-- Seleccione --</option>
+                                        {% for ciudad in ciudades %}
+                                        <option value="{{ ciudad.CODLUGAR }}">{{ ciudad.NOMLUGAR }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <!-- Entidad -->
+                                <div class="mb-3">
+                                    <label for="entidad" class="form-label fw-bold">Entidad</label>
+                                    <select class="form-select" id="entidad" disabled>
+                                        <option value="">-- Seleccione ciudad primero --</option>
+                                    </select>
+                                </div>
+
+                                <!-- Impugnacion -->
+                                <div class="mb-3">
+                                    <label for="impugnacion" class="form-label fw-bold">Impugnacion</label>
+                                    <select class="form-select" id="impugnacion" disabled>
+                                        <option value="">-- Ninguna --</option>
+                                        {% for imp in impugnaciones %}
+                                        <option value="{{ imp.IDIMPUGNA }}">{{ imp.NOMIMPUGNA }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- Seccion Suceso, Resultado y Documentos -->
                 <div class="row">
+                    <!-- Suceso -->
                     <div class="col-md-4">
-                        <label class="fw-bold">Cliente:</label>
-                        <p>{{ caso.nomcliente }} {{ caso.apellcliente }}</p>
+                        <div class="card h-100">
+                            <div class="card-header bg-info text-white py-2">
+                                <h6 class="mb-0"><i class="bi bi-chat-left-text me-1"></i>Suceso</h6>
+                            </div>
+                            <div class="card-body p-2">
+                                <div id="sucesoContainer" class="border rounded p-2" style="min-height: 120px; max-height: 150px; overflow-y: auto; background-color: #f8f9fa;" ondblclick="abrirEditor('suceso')">
+                                    <small class="text-muted">El suceso aparece aquí...</small>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-md-4">
-                        <label class="fw-bold">Especializacion:</label>
-                        <p>{{ caso.nomespecializacion }}</p>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="fw-bold">Estado:</label>
-                        <p>{% if caso.fechafin %}Cerrado{% else %}Activo{% endif %}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <div class="card">
-            <div
-                class="card-header bg-secondary text-white d-flex justify-content-between align-items-center d-print-none">
-                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Historial de Etapas (Expediente)</h5>
-                {% if not caso.fechafin %}
-                {% if etapas_disponibles %}
-                <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#newStageModal">
-                    <i class="bi bi-plus-circle"></i>
-                    {% if expedientes %}Siguiente Etapa{% else %}Crear Primera Etapa{% endif %}
-                </button>
-                {% else %}
-                <span class="badge bg-warning text-dark">No hay mas etapas disponibles</span>
-                {% endif %}
-                {% endif %}
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead>
-                            <tr>
-                                <th>Consec.</th>
-                                <th>Etapa</th>
-                                <th>Instancia</th>
-                                <th>Fecha</th>
-                                <th>Lugar</th>
-                                <th>Abogado</th>
-                                <th>Documentos</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for exp in expedientes %}
-                            <tr>
-                                <td>{{ exp.consecexpe }}</td>
-                                <td>{{ exp.etapa_nombre }}</td>
-                                <td>{{ exp.ninstancia }}</td>
-                                <td>{{ exp.fechaetapa }}</td>
-                                <td>{{ exp.nomlugar }}</td>
-                                <td>{{ exp.abogado_nombre }}</td>
-                                <td>
-                                    {% if exp.ubicadoc %}
-                                    <a href="#" class="badge bg-primary text-decoration-none"><i
-                                            class="bi bi-file-earmark-pdf"></i> {{ exp.ubicadoc }}</a>
-                                    {% else %}
-                                    <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="7" class="text-center">No hay etapas registradas</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-    </div>
-</div>
-
-<!-- New Stage Modal -->
-{% if caso and not caso.fechafin and etapas_disponibles %}
-<div class="modal fade" id="newStageModal" tabindex="-1">
+                    <!-- Resultado -->
+                    <div class="col-md-4">
+                        <div class="card h-100">
+                            <div class="card-header bg-secondary text-white py-2">
+                                <h6 class="mb-0"><i class="bi bi-journal-check me-1"></i>Resultado</h6>
+                            </div>
+                            <div class="card-body p-2">
+                                <div id="resultadoContainer" class="border rounded p-2"
+                                    style="min-height: 120px; max-height: 150px; overflow-y: auto; background-color: #f8f9fa;"
+                                    ondblclick="abrirEditor('resultado')">
+                                    <small class="text-muted">Los resultados aparecen aqui...</small>
+                                </div>
+<!-- Modal Editor para Suceso y Resultado -->
+<div class="modal fade" id="modalEditor" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form method="POST" action="{% url 'crear_etapa' %}" enctype="multipart/form-data">
-                {% csrf_token %}
-                <input type="hidden" name="caso_id" value="{{ caso.nocaso }}">
-                <div class="modal-header">
-                    <h5 class="modal-title">Registrar Etapa</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Etapa Procesal (Siguiente)</label>
-                            <select class="form-select" name="id_especia_etapa" required>
-                                {% for etapa in etapas_disponibles %}
-                                <option value="{{ etapa.id_especia_etapa }}">
-                                    {{ etapa.nometapa }}
-                                    (Instancia {{ etapa.ninstancia }})
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Abogado Responsable</label>
-                            <select class="form-select" name="cedula" required>
-                                {% for abg in abogados %}
-                                <option value="{{ abg.cedula }}">{{ abg.nombre }} {{ abg.apellido }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Lugar / Entidad</label>
-                            <select class="form-select" name="cod_lugar" required>
-                                {% for lugar in lugares %}
-                                <option value="{{ lugar.codlugar }}">{{ lugar.nomlugar }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Fecha Etapa</label>
-                            <input type="date" class="form-control" name="fecha_etapa" value="{% now 'Y-m-d' %}"
-                                required>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Adjuntar Documento (PDF)</label>
-                            <input type="file" class="form-control" name="documento" accept=".pdf">
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Descripcion del Suceso</label>
-                            <textarea class="form-control" name="desc_suceso" rows="3"></textarea>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Guardar Etapa</button>
-                </div>
-            </form>
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalEditorTitulo">Editor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <textarea id="editorTexto" class="form-control" rows="12" style="resize:vertical;"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" id="btnGuardarEditor">Guardar</button>
+            </div>
         </div>
     </div>
 </div>
-{% endif %}
+                            </div>
+                        </div>
+                    </div>
 
-<style>
-    @media print {
-        .d-print-none {
-            display: none !important;
+                    <!-- Documentos -->
+                    <div class="col-md-4">
+                        <div class="card h-100">
+                            <div class="card-header bg-warning py-2">
+                                <h6 class="mb-0"><i class="bi bi-file-earmark-text me-1"></i>Documentos</h6>
+                            </div>
+                            <div class="card-body p-2">
+                                <div id="documentosContainer" style="max-height: 150px; overflow-y: auto;">
+                                    <div class="list-group list-group-flush" id="listaDocumentos">
+                                        <small class="text-muted">Sin documentos</small>
+                                    </div>
+                                </div>
+                                <div class="mt-2 border-top pt-2" id="uploadContainer" style="display:none;">
+                                    <label class="form-label small fw-bold">Subir PDF(s):</label>
+                                    <input type="file" class="form-control form-control-sm" id="documentoInput" accept=".pdf" multiple>
+                                    <div class="form-text">Puede seleccionar uno o varios archivos PDF, o ninguno.</div>
+                                    <div id="listaDocumentosNuevos" class="list-group list-group-flush mt-2"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- Navegacion y Botones -->
+                <div class="row align-items-center">
+                    <!-- Navegacion de Etapas -->
+                    <div class="col-md-4">
+                        <div class="d-flex justify-content-start gap-2">
+                            <button type="button" class="btn btn-outline-secondary btn-lg" id="btnPrevEtapa"
+                                onclick="navegarEtapa(-1)" disabled>
+                                <i class="bi bi-arrow-left-circle"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-lg" id="btnNextEtapa"
+                                onclick="navegarEtapa(1)" disabled>
+                                <i class="bi bi-arrow-right-circle"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Botones de Accion -->
+                    <div class="col-md-8">
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-warning px-4" onclick="limpiarTodo()">
+                                <i class="bi bi-eraser"></i> Limpiar
+                            </button>
+                            <button type="button" class="btn btn-success btn-lg px-4" id="btnGuardar"
+                                onclick="guardarExpediente()" disabled>
+                                <i class="bi bi-check-circle"></i> Guardar
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-lg px-4" id="btnImprimir"
+                                onclick="imprimirCaso()" disabled>
+                                <i class="bi bi-printer"></i> Imprimir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let editorCampoActual = null;
+
+    function abrirEditor(campo) {
+        editorCampoActual = campo;
+        let titulo = campo === 'suceso' ? 'Editar Suceso' : 'Editar Resultado';
+        document.getElementById('modalEditorTitulo').innerText = titulo;
+        if (campo === 'suceso') {
+            const sucesoContainer = document.getElementById('sucesoContainer');
+            let textos = Array.from(sucesoContainer.querySelectorAll('small')).map(e => e.innerText);
+            document.getElementById('editorTexto').value = textos.join('\n---\n');
+        } else if (campo === 'resultado') {
+            const resultadoContainer = document.getElementById('resultadoContainer');
+            let textos = Array.from(resultadoContainer.querySelectorAll('small')).map(e => e.innerText);
+            document.getElementById('editorTexto').value = textos.join('\n---\n');
+        }
+        var modal = new bootstrap.Modal(document.getElementById('modalEditor'));
+        modal.show();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('btnGuardarEditor').onclick = function() {
+            const texto = document.getElementById('editorTexto').value;
+            if (editorCampoActual === 'suceso') {
+                const sucesoContainer = document.getElementById('sucesoContainer');
+                sucesoContainer.innerHTML = texto.split('\n---\n').map(t => `<div class=\"mb-2 p-1 border-bottom\"><small>${t}</small></div>`).join('');
+                guardarSucesoSQLRaw(texto);
+            } else if (editorCampoActual === 'resultado') {
+                const resultadoContainer = document.getElementById('resultadoContainer');
+                resultadoContainer.innerHTML = texto.split('\n---\n').map(t => `<div class=\"mb-2 p-1 border-bottom\"><small>${t}</small></div>`).join('');
+                guardarResultadoSQLRaw(texto);
+            }
+            bootstrap.Modal.getInstance(document.getElementById('modalEditor')).hide();
+        };
+
+        // Mostrar lista de PDFs seleccionados y permitir visualizarlos
+        document.getElementById('documentoInput').addEventListener('change', function() {
+            const lista = document.getElementById('listaDocumentosNuevos');
+            lista.innerHTML = '';
+            const files = this.files;
+            if (files.length === 0) {
+                lista.innerHTML = '<small class="text-muted">Sin documentos seleccionados</small>';
+                return;
+            }
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const id = 'docNuevo_' + i;
+                const item = document.createElement('a');
+                item.href = '#';
+                item.className = 'list-group-item list-group-item-action d-flex align-items-center py-1';
+                item.innerHTML = `<i class='bi bi-file-earmark-pdf text-danger me-2'></i><small>${file.name}</small>`;
+                item.onclick = function(e) {
+                    e.preventDefault();
+                    const url = URL.createObjectURL(file);
+                    document.getElementById('visorPDF').src = url;
+                    var modal = new bootstrap.Modal(document.getElementById('modalVisorPDF'));
+                    modal.show();
+                };
+                lista.appendChild(item);
+            }
+        });
+    });
+
+    function guardarSucesoSQLRaw(texto) {
+        if (!expedienteActual) return;
+        fetch("{% url 'clientes:guardar_suceso' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: new URLSearchParams({
+                codespecializacion: expedienteActual.codespecializacion,
+                nocaso: expedienteActual.nocaso,
+                ninstancia: expedienteActual.ninstancia,
+                consecexpe: expedienteActual.consecexpe,
+                descsuceso: texto
+            })
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (!d.success) mostrarAlerta('Error guardando suceso: ' + d.error, 'danger');
+        });
+    }
+
+    function guardarResultadoSQLRaw(texto) {
+        if (!expedienteActual) return;
+        fetch("{% url 'clientes:guardar_resultado' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: new URLSearchParams({
+                codespecializacion: expedienteActual.codespecializacion,
+                nocaso: expedienteActual.nocaso,
+                ninstancia: expedienteActual.ninstancia,
+                consecexpe: expedienteActual.consecexpe,
+                descresul: texto
+            })
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (!d.success) mostrarAlerta('Error guardando resultado: ' + d.error, 'danger');
+        });
+    }
+
+    // Utilidad para CSRF
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    let casoActual = null;
+    let expedientes = [];
+    let expedienteActual = null;
+    let modoNuevoExpediente = false;
+    let indiceExpediente = 0;
+
+    function buscarCaso() {
+        const nocaso = document.getElementById('nocaso').value.trim();
+        if (!nocaso) {
+            mostrarAlerta('Ingrese un numero de caso', 'warning');
+            return;
         }
 
-        .card {
-            border: none !important;
-            shadow: none !important;
+        fetch("{% url 'clientes:obtener_caso_expediente' %}?idcaso=" + encodeURIComponent(nocaso))
+            .then(response => response.json())
+            .then(data => {
+                if (data.encontrado) {
+                    casoActual = data.caso;
+                    console.log('Caso cargado:', casoActual); // DEBUG
+
+                    mostrarAlerta('Caso encontrado: ' + data.caso.tipocaso + ' - ' + data.caso.cliente, 'success');
+
+                    // Cargar abogados directamente con codespecializacion del caso
+                    cargarAbogados(data.caso.codespecializacion);
+
+                    // Cargar expedientes del caso
+                    cargarExpedientesCaso(nocaso);
+
+                    // Habilitar botón imprimir
+                    document.getElementById('btnImprimir').disabled = false;
+
+                    // Si el caso tiene fecha fin (cerrado), deshabilitar creación
+                    if (data.caso.fechafin) {
+                        document.getElementById('btnCrearExpe').disabled = true;
+                        mostrarAlerta('Caso cerrado. Solo consulta.', 'info');
+                    } else {
+                        document.getElementById('btnCrearExpe').disabled = false;
+                    }
+                } else {
+                    casoActual = null;
+                    limpiarCamposExpediente();
+                    mostrarAlerta('Caso no encontrado', 'warning');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                mostrarAlerta('Error al buscar: ' + error, 'danger');
+            });
+    }
+
+    function cargarAbogados(codespecializacion) {
+        if (!codespecializacion) {
+            console.error('No hay codigo de especializacion');
+            return;
         }
 
-        .card-header {
-            background-color: white !important;
-            color: black !important;
-            border-bottom: 2px solid black !important;
+        fetch("{% url 'clientes:obtener_abogados_especializacion' %}?codespecializacion=" + encodeURIComponent(codespecializacion))
+            .then(response => response.json())
+            .then(abogData => {
+                const selectAbogado = document.getElementById('abogado');
+                selectAbogado.innerHTML = '<option value="">-- Seleccione --</option>';
+
+                if (abogData.success && abogData.abogados && abogData.abogados.length > 0) {
+                    abogData.abogados.forEach(a => {
+                        selectAbogado.innerHTML += `<option value="${a.CEDULA}">${a.NOMBRE} ${a.APELLIDO} (${a.NTARJETAPROFESIONAL})</option>`;
+                    });
+                    console.log('Abogados cargados:', abogData.abogados.length);
+                } else {
+                    console.log('No hay abogados para esta especializacion');
+                }
+            })
+            .catch(error => {
+                console.error('Error cargando abogados:', error);
+            });
+    }
+
+    function cargarExpedientesCaso(nocaso) {
+        fetch("{% url 'clientes:obtener_expedientes_caso' %}?idcaso=" + encodeURIComponent(nocaso))
+            .then(async response => {
+                const contentType = response.headers.get('content-type');
+                if (!response.ok) {
+                    // Si el backend responde con error, intenta extraer mensaje
+                    let errorText = await response.text();
+                    if (contentType && contentType.includes('text/html')) {
+                        throw new Error('Error interno del servidor (500). Consulta los logs del backend.');
+                    } else {
+                        throw new Error(errorText || 'Error desconocido');
+                    }
+                }
+                if (contentType && contentType.includes('application/json')) {
+                    return response.json();
+                } else {
+                    let text = await response.text();
+                    throw new Error('Respuesta inesperada del servidor: ' + text.substring(0, 200));
+                }
+            })
+            .then(data => {
+                console.log('Expedientes recibidos:', data);  // DEBUG
+                expedientes = data.expedientes || [];
+                const selectExpe = document.getElementById('noexpediente');
+
+                if (expedientes.length > 0) {
+                    selectExpe.innerHTML = '<option value="">-- Seleccione expediente --</option>';
+                    expedientes.forEach((exp, idx) => {
+                        const nombre = exp.estadoexpediente || `Instancia ${exp.ninstancia}`;
+                        selectExpe.innerHTML += `<option value="${idx}">${exp.consecexpe} - ${nombre}</option>`;
+                    });
+                    selectExpe.disabled = false;
+
+                    // Habilitar navegacion
+                    document.getElementById('btnPrevEtapa').disabled = false;
+                    document.getElementById('btnNextEtapa').disabled = false;
+
+                    // Auto-seleccionar el ultimo expediente
+                    indiceExpediente = expedientes.length - 1;
+                    selectExpe.value = indiceExpediente;
+                    cargarExpediente();
+
+                    mostrarAlerta(`Se encontraron ${expedientes.length} expediente(s)`, 'info');
+                } else {
+                    selectExpe.innerHTML = '<option value="">-- Sin expedientes --</option>';
+                    selectExpe.disabled = true;
+                    limpiarCamposExpediente();
+                    mostrarAlerta('No hay expedientes. Puede crear uno nuevo.', 'info');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                mostrarAlerta('Error al cargar expedientes: ' + error.message, 'danger');
+            });
+    }
+
+    function cargarExpediente() {
+        const selectExpe = document.getElementById('noexpediente');
+        const idx = parseInt(selectExpe.value);
+
+        if (isNaN(idx) || idx < 0 || idx >= expedientes.length) {
+            limpiarCamposExpediente();
+            return;
+        }
+
+        indiceExpediente = idx;
+        expedienteActual = expedientes[idx];
+        modoNuevoExpediente = false;
+
+        console.log('Cargando expediente:', expedienteActual); // DEBUG
+
+        // Llenar campos
+        document.getElementById('noetapa').value = expedienteActual.ninstancia || '';
+        document.getElementById('fechaetapa').value = expedienteActual.fechaapertura || '';
+        document.getElementById('nombreetapa').value = expedienteActual.estadoexpediente || '';
+        document.getElementById('instancia').value = expedienteActual.ninstancia || '';
+
+        // Lógica dinámica de instancia/impugnación al cargar expediente
+        actualizarInstanciaEImpugnacion(
+            expedienteActual.estadoexpediente,
+            expedienteActual.codespecializacion,
+            expedienteActual.ninstancia
+        );
+
+        // Seleccionar abogado si existe
+        if (expedienteActual.cedula) {
+            document.getElementById('abogado').value = expedienteActual.cedula;
+        } else {
+            document.getElementById('abogado').value = '';
+        }
+
+        // Si hay composite keys, cargar detalles completos
+        if (expedienteActual.consecexpe) {
+            cargarDetalleExpediente(expedienteActual);
+        }
+
+        // Deshabilitar campos en modo consulta
+        habilitarCampos(false);
+        document.getElementById('btnGuardar').disabled = true;
+    }
+
+
+    function cargarDetalleExpediente(exp) {
+        const params = new URLSearchParams({
+            codespecializacion: exp.codespecializacion,
+            nocaso: exp.nocaso,
+            ninstancia: exp.ninstancia,
+            consecexpe: exp.consecexpe
+        });
+
+        fetch("{% url 'clientes:obtener_expediente_detalle' %}?" + params.toString())
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Mostrar sucesos
+                    const sucesoContainer = document.getElementById('sucesoContainer');
+                    if (data.sucesos && data.sucesos.length > 0) {
+                        sucesoContainer.innerHTML = data.sucesos.map(s => `<div class=\"mb-2 p-1 border-bottom\"><small>${s.DESCSUCESO}</small></div>`).join('');
+                    } else {
+                        sucesoContainer.innerHTML = '<small class="text-muted">El suceso aparece aquí...</small>';
+                    }
+
+                    // Mostrar resultados
+                    const resultadoContainer = document.getElementById('resultadoContainer');
+                    if (data.resultados && data.resultados.length > 0) {
+                        resultadoContainer.innerHTML = data.resultados.map(r =>
+                            `<div class="mb-2 p-1 border-bottom"><small>${r.DESCRESUL}</small></div>`
+                        ).join('');
+                    } else {
+                        resultadoContainer.innerHTML = '<small class="text-muted">Sin resultados</small>';
+                    }
+
+                    // Mostrar documentos
+                    const docsContainer = document.getElementById('listaDocumentos');
+                    if (data.documentos && data.documentos.length > 0) {
+                        docsContainer.innerHTML = data.documentos.map(d =>
+                            `<a href="#" class="list-group-item list-group-item-action d-flex align-items-center py-1"
+                                onclick="verPDF('${d.UBICADOC}', event)">
+                                <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
+                                <small>${d.NOMDOC || 'Documento ' + d.CONDOC}</small>
+                            </a>`
+                        ).join('');
+                    } else {
+                        docsContainer.innerHTML = '<small class="text-muted">Sin documentos</small>';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error cargando detalle:', error);
+            });
+    }
+
+    // Visor PDF
+    function verPDF(url, event) {
+        event.preventDefault();
+        document.getElementById('visorPDF').src = url;
+        var modal = new bootstrap.Modal(document.getElementById('modalVisorPDF'));
+        modal.show();
+    }
+
+    function crearNuevoExpediente() {
+        if (!casoActual) {
+            mostrarAlerta('Primero busque un caso', 'warning');
+            return;
+        }
+
+        modoNuevoExpediente = true;
+        expedienteActual = null;
+
+        // Fetch Consecutivo
+        fetch("{% url 'clientes:obtener_proximo_consecutivo' %}?nocaso=" + casoActual.nocaso + "&codespecializacion=" + casoActual.codespecializacion)
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) {
+                    const selectExpe = document.getElementById('noexpediente');
+                    selectExpe.innerHTML = `<option value="nuevo">${d.consecutivo} (Nuevo)</option>`;
+                    selectExpe.value = 'nuevo';
+                    selectExpe.disabled = true;
+                }
+            });
+
+        // Habilitar campos generales primero
+        habilitarCampos(true);
+
+        // Fecha inicio = hoy, NO MODIFICABLE (Req d.iii)
+        const fechaInput = document.getElementById('fechaetapa');
+        fechaInput.value = new Date().toISOString().split('T')[0];
+        fechaInput.disabled = true;
+
+        // Cargar primera etapa de la especialización
+        fetch("{% url 'clientes:obtener_primera_etapa' %}?codespecializacion=" + encodeURIComponent(casoActual.codespecializacion))
+            .then(response => response.json())
+            .then(etapaData => {
+                if (etapaData.success) {
+                    document.getElementById('noetapa').value = etapaData.etapa.ORDEN || 1;
+                    document.getElementById('nombreetapa').value = etapaData.etapa.NOMETAPA || '';
+
+                    // Lógica dinámica de instancia/impugnación al crear nuevo expediente
+                    actualizarInstanciaEImpugnacion(
+                        etapaData.etapa.NOMETAPA,
+                        casoActual.codespecializacion,
+                        etapaData.etapa.ORDEN || 1
+                    );
+                } else {
+                    mostrarAlerta('Error: ' + etapaData.error, 'danger');
+                }
+            });
+
+        // Limpiar areas de texto
+        document.getElementById('suceso').value = '';
+        document.getElementById('resultadoContainer').innerHTML = '<small class="text-muted">Sin resultados</small>';
+        document.getElementById('listaDocumentos').innerHTML = '<small class="text-muted">Sin documentos</small>';
+
+        document.getElementById('btnGuardar').disabled = false;
+
+        mostrarAlerta('Complete los datos del nuevo expediente', 'info');
+    }
+
+    function habilitarCampos(habilitar) {
+        document.getElementById('fechaetapa').disabled = !habilitar;
+        document.getElementById('instancia').disabled = !habilitar;
+        document.getElementById('abogado').disabled = !habilitar;
+        document.getElementById('ciudad').disabled = !habilitar;
+        document.getElementById('entidad').disabled = !habilitar;
+        document.getElementById('impugnacion').disabled = !habilitar;
+        document.getElementById('suceso').disabled = !habilitar;
+        document.getElementById('uploadContainer').style.display = habilitar ? 'block' : 'none';
+        document.getElementById('documentoInput').disabled = !habilitar;
+        if (!habilitar) document.getElementById('documentoInput').value = ''; // Limpiar si se deshabilita
+    }
+
+    function cargarEntidades() {
+        const ciudad = document.getElementById('ciudad').value;
+        const selectEntidad = document.getElementById('entidad');
+
+        if (!ciudad) {
+            selectEntidad.innerHTML = '<option value="">-- Seleccione ciudad primero --</option>';
+            return;
+        }
+
+        fetch("{% url 'clientes:obtener_entidades_ciudad' %}?codciudad=" + encodeURIComponent(ciudad))
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.entidades) {
+                    selectEntidad.innerHTML = '<option value="">-- Seleccione --</option>' +
+                        data.entidades.map(e => `<option value="${e.CODLUGAR}">${e.NOMLUGAR} (${e.DESCTIPOLUGAR})</option>`).join('');
+                    selectEntidad.disabled = false;
+                } else {
+                    selectEntidad.innerHTML = '<option value="">No hay entidades</option>';
+                }
+            })
+            .catch(error => {
+                selectEntidad.innerHTML = '<option value="">Error al cargar</option>';
+                console.error('Error:', error);
+            });
+    }
+
+    function navegarEtapa(direccion) {
+        if (expedientes.length === 0) return;
+
+        let nuevoIndice = indiceExpediente + direccion;
+
+        if (nuevoIndice < 0) nuevoIndice = 0;
+        if (nuevoIndice >= expedientes.length) nuevoIndice = expedientes.length - 1;
+
+        if (nuevoIndice !== indiceExpediente) {
+            indiceExpediente = nuevoIndice;
+            document.getElementById('noexpediente').value = indiceExpediente;
+            cargarExpediente();
         }
     }
-</style>
+
+    function guardarExpediente() {
+        if (!casoActual) {
+            mostrarAlerta('Primero busque un caso', 'warning');
+            return;
+        }
+
+        if (!modoNuevoExpediente) {
+            mostrarAlerta('Los expedientes existentes son solo consulta', 'warning');
+            return;
+        }
+
+        const codlugar = document.getElementById('entidad').value;
+        const cedula = document.getElementById('abogado').value;
+        const fechaetapa = document.getElementById('fechaetapa').value;
+
+        if (!codlugar) {
+            mostrarAlerta('Seleccione una entidad', 'warning');
+            return;
+        }
+
+        const descsuceso = document.getElementById('suceso').value;
+        const documentoInput = document.getElementById('documentoInput');
+
+        const formData = new FormData();
+        formData.append('nocaso', casoActual.nocaso.toString());
+        formData.append('codlugar', codlugar);
+        if (cedula) formData.append('cedula', cedula);
+        formData.append('fechaetapa', fechaetapa || new Date().toISOString().split('T')[0]);
+        formData.append('descsuceso', descsuceso || '');
+
+
+        // Permitir cualquier cantidad de documentos (incluyendo 0)
+        for (let i = 0; i < documentoInput.files.length; i++) {
+            formData.append('documento' + (i + 1), documentoInput.files[i]);
+        }
+
+        fetch("{% url 'clientes:crear_expediente' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.exito) {
+                    mostrarAlerta(data.mensaje, 'success');
+                    modoNuevoExpediente = false;
+                    // Recargar expedientes
+                    cargarExpedientesCaso(casoActual.nocaso);
+                } else {
+                    mostrarAlerta(data.mensaje || 'Error al guardar', 'danger');
+                }
+            })
+            .catch(error => {
+                mostrarAlerta('Error: ' + error, 'danger');
+            });
+    }
+
+    function imprimirCaso() {
+        if (!casoActual) {
+            mostrarAlerta('No hay caso cargado', 'warning');
+            return;
+        }
+
+        window.open("{% url 'clientes:imprimir_caso' %}?nocaso=" + casoActual.nocaso, '_blank');
+    }
+
+    function limpiarCamposExpediente() {
+        document.getElementById('noexpediente').innerHTML = '<option value="">-- Sin expedientes --</option>';
+        document.getElementById('noexpediente').disabled = true;
+        document.getElementById('noetapa').value = '';
+        document.getElementById('fechaetapa').value = '';
+        document.getElementById('nombreetapa').value = '';
+        document.getElementById('instancia').value = '';
+        document.getElementById('abogado').value = '';
+        document.getElementById('ciudad').value = '';
+        document.getElementById('entidad').innerHTML = '<option value="">-- Seleccione ciudad primero --</option>';
+        document.getElementById('impugnacion').value = '';
+        document.getElementById('suceso').value = '';
+        document.getElementById('resultadoContainer').innerHTML = '<small class="text-muted">Sin resultados</small>';
+        document.getElementById('listaDocumentos').innerHTML = '<small class="text-muted">Sin documentos</small>';
+
+        habilitarCampos(false);
+        document.getElementById('btnGuardar').disabled = true;
+        document.getElementById('btnPrevEtapa').disabled = true;
+        document.getElementById('btnNextEtapa').disabled = true;
+
+        expedienteActual = null;
+        modoNuevoExpediente = false;
+    }
+
+    function limpiarTodo() {
+        casoActual = null;
+        expedientes = [];
+
+        document.getElementById('nocaso').value = '';
+        document.getElementById('btnCrearExpe').disabled = true;
+        document.getElementById('btnImprimir').disabled = true;
+
+        limpiarCamposExpediente();
+    }
+
+    // Paso 1: Lógica dinámica para Instancia e Impugnación según etapa
+function actualizarInstanciaEImpugnacion(etapa, codespecializacion, ninstancia) {
+    const instanciaSelect = document.getElementById('instancia');
+    const impugnacionSelect = document.getElementById('impugnacion');
+    // Por defecto, ambos deshabilitados y en null
+    instanciaSelect.value = '';
+    instanciaSelect.disabled = true;
+    impugnacionSelect.value = '';
+    impugnacionSelect.disabled = true;
+
+    // Si etapa es Sentencia
+    if (etapa && etapa.toLowerCase() === 'sentencia') {
+        instanciaSelect.innerHTML = '<option value="Primera">Primera</option>';
+        instanciaSelect.value = 'Primera';
+        instanciaSelect.disabled = false;
+    }
+    // Si etapa es Impugnacion
+    else if (etapa && etapa.toLowerCase().includes('impugnacion')) {
+        instanciaSelect.innerHTML = '<option value="Segunda">Segunda</option>';
+        instanciaSelect.value = 'Segunda';
+        instanciaSelect.disabled = false;
+        // Habilitar impugnacion y cargar solo válidas
+        cargarImpugnacionesEspecializacion(codespecializacion, ninstancia);
+    } else {
+        // En cualquier otra etapa, instancia queda vacía y deshabilitada
+        instanciaSelect.innerHTML = '<option value="">-- Seleccione --</option>';
+        instanciaSelect.value = '';
+        instanciaSelect.disabled = true;
+    }
+}
+
+// Paso 3: Cargar impugnaciones válidas según especialización y instancia desde ESPECIA_ETAPA
+function cargarImpugnacionesEspecializacion(codespecializacion, ninstancia) {
+    const impugnacionSelect = document.getElementById('impugnacion');
+    impugnacionSelect.innerHTML = '<option value="">-- Ninguna --</option>';
+    // Endpoint a implementar en el backend
+    fetch(`/clientes/expediente/impugnaciones_validas/?codespecializacion=${encodeURIComponent(codespecializacion)}&ninstancia=${encodeURIComponent(ninstancia)}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.impugnaciones) {
+                data.impugnaciones.forEach(imp => {
+                    impugnacionSelect.innerHTML += `<option value="${imp.IDIMPUGNA}">${imp.NOMIMPUGNA}</option>`;
+                });
+                impugnacionSelect.disabled = false;
+            }
+        });
+}
+</script>
+
+<!-- Modal para visor PDF (fuera del script) -->
+<div class="modal fade" id="modalVisorPDF" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Visualizar Documento PDF</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="height:80vh;">
+                <embed id="visorPDF" src="" type="application/pdf" width="100%" height="100%" />
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
