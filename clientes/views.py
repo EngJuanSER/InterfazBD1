@@ -459,11 +459,18 @@ def obtener_expedientes_caso(request):
                    l.NOMLUGAR,
                    ep.NOMETAPA,
                    ex.CEDULA,
-                   ex.CODLUGAR
+                   ex.CODLUGAR,
+                   l.LUG_CODLUGAR,
+                   (
+                     SELECT CODLUGAR FROM LUGAR
+                     WHERE IDTIPOLUGAR = 3
+                     START WITH CODLUGAR = l.CODLUGAR
+                     CONNECT BY PRIOR LUG_CODLUGAR = CODLUGAR
+                   ) as codciudad
             FROM EXPEDIENTE ex
             LEFT JOIN ABOGADO a ON ex.CEDULA = a.CEDULA
             LEFT JOIN LUGAR l ON ex.CODLUGAR = l.CODLUGAR
-            LEFT JOIN ESPECIA_ETAPA ee ON ex.CODESPECIALIZACION = ee.CODESPECIALIZACION 
+            LEFT JOIN ESPECIA_ETAPA ee ON ex.CODESPECIALIZACION = ee.CODESPECIALIZACION
                                       AND ex.NINSTANCIA = ee.NINSTANCIA
             LEFT JOIN ETAPAPROCESAL ep ON ee.CODETAPA = ep.CODETAPA
             WHERE ex.NOCASO = :nocaso
@@ -472,7 +479,7 @@ def obtener_expedientes_caso(request):
         
         rows = cursor.fetchall()
     
-    # Convertir a lista de diccionarios manualmente
+        # Convertir a lista de diccionarios manualmente
     expedientes = []
     for row in rows:
         expedientes.append({
@@ -485,7 +492,8 @@ def obtener_expedientes_caso(request):
             'entidad': row[6] or '',
             'estadoexpediente': row[7] or f'Instancia {row[2]}',
             'cedula': row[8] or '',
-            'codlugar': row[9] or ''
+            'codlugar': row[9] or '',
+            'codciudad': row[11] or '' # ID de la ciudad (raiz de la jerarquia)
         })
     
     return JsonResponse({'expedientes': expedientes})
@@ -525,8 +533,9 @@ def obtener_entidades_ciudad(request):
             SELECT l.CODLUGAR, l.NOMLUGAR, t.DESCTIPOLUGAR
             FROM LUGAR l
             JOIN TIPOLUGAR t ON l.IDTIPOLUGAR = t.IDTIPOLUGAR
-            WHERE l.LUG_CODLUGAR = :codciudad
-               OR l.LUG_CODLUGAR IN (SELECT CODLUGAR FROM LUGAR WHERE LUG_CODLUGAR = :codciudad)
+            WHERE l.IDTIPOLUGAR != 3
+            START WITH l.LUG_CODLUGAR = :codciudad
+            CONNECT BY PRIOR l.CODLUGAR = l.LUG_CODLUGAR
             ORDER BY t.IDTIPOLUGAR DESC, l.NOMLUGAR
         """, {'codciudad': codciudad})
         entidades = dictfetchall(cursor)
@@ -574,15 +583,13 @@ def obtener_proximo_consecutivo(request):
         
     with connection.cursor() as cursor:
         cursor.execute("""
-            SELECT NVL(MAX(CONSECEXPE), 0) + 1 
-            FROM EXPEDIENTE 
-            WHERE NOCASO = :nocaso 
+            SELECT NVL(MAX(CONSECEXPE), 0) + 1
+            FROM EXPEDIENTE
+            WHERE NOCASO = :nocaso
               AND CODESPECIALIZACION = :codespecializacion
-              AND NINSTANCIA = :ninstancia
         """, {
-            'nocaso': nocaso, 
-            'codespecializacion': codespecializacion,
-            'ninstancia': ninstancia
+            'nocaso': nocaso,
+            'codespecializacion': codespecializacion
         })
         consecutivo = cursor.fetchone()[0]
         
@@ -594,10 +601,10 @@ def impugnaciones_validas(request):
     """Devuelve impugnaciones válidas para una especialización e instancia, según ESPECIA_ETAPA"""
     codespecializacion = request.GET.get('codespecializacion', '').strip()
     ninstancia = request.GET.get('ninstancia', '').strip()
-    
+
     if not codespecializacion or not ninstancia:
         return JsonResponse({'success': False, 'error': 'Faltan parámetros'})
-    
+
     with connection.cursor() as cursor:
         # Buscar impugnaciones válidas para la especialización e instancia
         cursor.execute("""
@@ -610,8 +617,18 @@ def impugnaciones_validas(request):
             ORDER BY i.NOMIMPUGNA
         """, {'codespecializacion': codespecializacion, 'ninstancia': ninstancia})
         impugnaciones = dictfetchall(cursor)
-    
-    return JsonResponse({'success': True, 'impugnaciones': impugnaciones})
+
+        # Obtener la impugnación por defecto de ESPECIA_ETAPA
+        cursor.execute("""
+            SELECT ee.IDIMPUGNA
+            FROM ESPECIA_ETAPA ee
+            WHERE ee.CODESPECIALIZACION = :codespecializacion
+              AND ee.NINSTANCIA = :ninstancia
+        """, {'codespecializacion': codespecializacion, 'ninstancia': ninstancia})
+        default_row = dictfetchone(cursor)
+        default_id = default_row['IDIMPUGNA'] if default_row and default_row['IDIMPUGNA'] else None
+
+    return JsonResponse({'success': True, 'impugnaciones': impugnaciones, 'default': default_id})
 
 
 def crear_expediente(request):
@@ -665,12 +682,11 @@ def crear_expediente(request):
             
             # Obtener siguiente consecutivo de expediente
             cursor.execute("""
-                SELECT NVL(MAX(CONSECEXPE), 0) + 1 
-                FROM EXPEDIENTE 
-                WHERE NOCASO = :nocaso 
+                SELECT NVL(MAX(CONSECEXPE), 0) + 1
+                FROM EXPEDIENTE
+                WHERE NOCASO = :nocaso
                   AND CODESPECIALIZACION = :codespecializacion
-                  AND NINSTANCIA = :ninstancia
-            """, {'nocaso': nocaso, 'codespecializacion': codespecializacion, 'ninstancia': ninstancia})
+            """, {'nocaso': nocaso, 'codespecializacion': codespecializacion})
             consecexpe = cursor.fetchone()[0]
             
             # Insertar expediente
@@ -825,10 +841,7 @@ def actualizar_expediente(request):
             })
 
             # Guardar nuevos documentos si existen
-            documentos_files = []
-            for key in request.FILES:
-                if key.startswith('documento'):
-                    documentos_files.append(request.FILES[key])
+            documentos_files = request.FILES.getlist('documento1')
 
             if documentos_files:
                 fs = FileSystemStorage()
@@ -941,23 +954,23 @@ def guardar_resultado(request):
     """Guardar un resultado para un expediente"""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Metodo no permitido'})
-    
+
     # Recibir composite keys
     codespecializacion = request.POST.get('codespecializacion', '').strip()
     nocaso = request.POST.get('nocaso', '').strip()
     ninstancia = request.POST.get('ninstancia', '').strip()
     consecexpe = request.POST.get('consecexpe', '').strip()
     descresul = request.POST.get('descresul', '').strip()
-    
+
     if not all([codespecializacion, nocaso, ninstancia, consecexpe, descresul]):
         return JsonResponse({'success': False, 'error': 'Datos incompletos'})
-    
+
     try:
         with connection.cursor() as cursor:
             # Obtener siguiente consecutivo (CONSECRESUL)
             cursor.execute("""
-                SELECT NVL(MAX(CONSECRESUL), 0) + 1 
-                FROM RESULTADO 
+                SELECT NVL(MAX(CONSECRESUL), 0) + 1
+                FROM RESULTADO
                 WHERE CODESPECIALIZACION = :codespecializacion
                   AND NOCASO = :nocaso
                   AND NINSTANCIA = :ninstancia
@@ -969,7 +982,7 @@ def guardar_resultado(request):
                 'consecexpe': consecexpe
             })
             conresul = cursor.fetchone()[0]
-            
+
             cursor.execute("""
                 INSERT INTO RESULTADO (CODESPECIALIZACION, NOCASO, NINSTANCIA, CONSECEXPE, CONSECRESUL, DESCRESUL)
                 VALUES (:codespecializacion, :nocaso, :ninstancia, :consecexpe, :conresul, :descresul)
@@ -981,8 +994,57 @@ def guardar_resultado(request):
                 'conresul': conresul,
                 'descresul': descresul
             })
-        
+
         return JsonResponse({'success': True, 'mensaje': 'Resultado guardado exitosamente'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+def eliminar_documento(request):
+    """Eliminar un documento de un expediente"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Metodo no permitido'})
+
+    # Recibir composite keys
+    codespecializacion = request.POST.get('codespecializacion', '').strip()
+    nocaso = request.POST.get('nocaso', '').strip()
+    ninstancia = request.POST.get('ninstancia', '').strip()
+    consecexpe = request.POST.get('consecexpe', '').strip()
+    condoc = request.POST.get('condoc', '').strip()
+
+    if not all([codespecializacion, nocaso, ninstancia, consecexpe, condoc]):
+        return JsonResponse({'success': False, 'error': 'Datos incompletos'})
+
+    try:
+        with connection.cursor() as cursor:
+            # Verificar si el caso está abierto
+            cursor.execute("""
+                SELECT FECHAFIN FROM CASO WHERE NOCASO = :nocaso
+            """, {'nocaso': nocaso})
+            row = cursor.fetchone()
+            if row and row[0]:
+                return JsonResponse({'success': False, 'error': 'No se puede eliminar: caso cerrado'})
+
+            # Eliminar el documento
+            cursor.execute("""
+                DELETE FROM DOCUMENTO
+                WHERE CODESPECIALIZACION = :codespecializacion
+                  AND NOCASO = :nocaso
+                  AND NINSTANCIA = :ninstancia
+                  AND CONSECEXPE = :consecexpe
+                  AND CONDOC = :condoc
+            """, {
+                'codespecializacion': codespecializacion,
+                'nocaso': nocaso,
+                'ninstancia': ninstancia,
+                'consecexpe': consecexpe,
+                'condoc': condoc
+            })
+
+            if cursor.rowcount == 0:
+                return JsonResponse({'success': False, 'error': 'Documento no encontrado'})
+
+        return JsonResponse({'success': True, 'mensaje': 'Documento eliminado exitosamente'})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 
@@ -1139,23 +1201,36 @@ def imprimir_caso(request):
 
         # Resultados del caso
         cursor.execute("""
-            SELECT CODESPECIALIZACION, NOCASO, NINSTANCIA, CONSECEXPE, CONSECRESUL, DESCRESUL 
-            FROM RESULTADO 
+            SELECT CODESPECIALIZACION, NOCASO, NINSTANCIA, CONSECEXPE, CONSECRESUL, DESCRESUL
+            FROM RESULTADO
             WHERE NOCASO = :nocaso
             ORDER BY CODESPECIALIZACION, NINSTANCIA, CONSECEXPE, CONSECRESUL
         """, {'nocaso': nocaso})
         all_resultados = dictfetchall(cursor)
-        
+
+        # Documentos del caso
+        cursor.execute("""
+            SELECT CODESPECIALIZACION, NOCASO, NINSTANCIA, CONSECEXPE, CONDOC, NOMDOC, UBICADOC
+            FROM DOCUMENTO
+            WHERE NOCASO = :nocaso
+            ORDER BY CODESPECIALIZACION, NINSTANCIA, CONSECEXPE, CONDOC
+        """, {'nocaso': nocaso})
+        all_documentos = dictfetchall(cursor)
+
         # Mapear a expedientes en memoria
         for exp in expedientes:
-            exp['sucesos'] = [s for s in all_sucesos if 
+            exp['sucesos'] = [s for s in all_sucesos if
                               s['CODESPECIALIZACION'] == exp['CODESPECIALIZACION'] and
                               s['NINSTANCIA'] == exp['NINSTANCIA'] and
                               s['CONSECEXPE'] == exp['CONSECEXPE']]
-            exp['resultados'] = [r for r in all_resultados if 
+            exp['resultados'] = [r for r in all_resultados if
                                  r['CODESPECIALIZACION'] == exp['CODESPECIALIZACION'] and
                                  r['NINSTANCIA'] == exp['NINSTANCIA'] and
                                  r['CONSECEXPE'] == exp['CONSECEXPE']]
+            exp['documentos'] = [d for d in all_documentos if
+                                 d['CODESPECIALIZACION'] == exp['CODESPECIALIZACION'] and
+                                 d['NINSTANCIA'] == exp['NINSTANCIA'] and
+                                 d['CONSECEXPE'] == exp['CONSECEXPE']]
     
     return render(request, 'clientes/imprimir_caso.html', {
         'caso': caso,

@@ -473,7 +473,7 @@
             return;
         }
 
-        fetch("{% url 'clientes:obtener_abogados_especializacion' %}?codespecializacion=" + encodeURIComponent(codespecializacion))
+        return fetch("{% url 'clientes:obtener_abogados_especializacion' %}?codespecializacion=" + encodeURIComponent(codespecializacion))
             .then(response => response.json())
             .then(abogData => {
                 const selectAbogado = document.getElementById('abogado');
@@ -487,13 +487,14 @@
                 } else {
                     console.log('No hay abogados para esta especializacion');
                 }
+                return abogData;
             })
             .catch(error => {
                 console.error('Error cargando abogados:', error);
             });
     }
 
-    function cargarExpedientesCaso(nocaso) {
+    function cargarExpedientesCaso(nocaso, consecutivoSeleccionar = null) {
         fetch("{% url 'clientes:obtener_expedientes_caso' %}?idcaso=" + encodeURIComponent(nocaso))
             .then(async response => {
                 const contentType = response.headers.get('content-type');
@@ -552,76 +553,18 @@
     function cargarExpediente() {
         const selectExpe = document.getElementById('noexpediente');
         const idx = parseInt(selectExpe.value);
-
         if (isNaN(idx) || idx < 0 || idx >= expedientes.length) {
             limpiarCamposExpediente();
             return;
         }
-
         indiceExpediente = idx;
         expedienteActual = expedientes[idx];
         modoNuevoExpediente = false;
-
-        console.log('Cargando expediente:', expedienteActual); // DEBUG
-
-        // Refuerzo: Validar existencia de elementos antes de asignar
-        const campoNoEtapa = document.getElementById('noetapa');
-        if (campoNoEtapa) campoNoEtapa.value = expedienteActual.ninstancia || '';
-
-        const campoFechaEtapa = document.getElementById('fechaetapa');
-        if (campoFechaEtapa) campoFechaEtapa.value = expedienteActual.fechaapertura || '';
-
-        const campoNombreEtapa = document.getElementById('nombreetapa');
-        if (campoNombreEtapa) campoNombreEtapa.value = expedienteActual.estadoexpediente || '';
-
-        const campoInstancia = document.getElementById('instancia');
-        if (campoInstancia) campoInstancia.value = expedienteActual.ninstancia || '';
-
-        // Lógica dinámica de instancia/impugnación al cargar expediente
-        if (typeof actualizarInstanciaEImpugnacion === 'function') {
-            actualizarInstanciaEImpugnacion(
-                expedienteActual.estadoexpediente,
-                expedienteActual.codespecializacion,
-                expedienteActual.ninstancia
-            );
-        }
-
-        // Seleccionar abogado si existe
-        const campoAbogado = document.getElementById('abogado');
-        if (campoAbogado) {
-            if (expedienteActual.cedula) {
-                campoAbogado.value = expedienteActual.cedula;
-            } else {
-                campoAbogado.value = '';
-            }
-        }
-
-        // Si hay composite keys, cargar detalles completos
+        // Solo delegar la carga de datos y selects a cargarDetalleExpediente
         if (expedienteActual.consecexpe && typeof cargarDetalleExpediente === 'function') {
             cargarDetalleExpediente(expedienteActual);
         }
-
-        // REQUISITO A: Si caso tiene FECHAFIN, deshabilitar TODOS los campos (solo navegación)
-        // REQUISITO B: Si caso NO tiene FECHAFIN, permitir edición
-        const casoTieneFechaFin = casoActual && casoActual.fechafin;
-
-        if (casoTieneFechaFin) {
-            // Caso cerrado: Solo navegación, sin edición
-            habilitarCampos(false);
-            document.getElementById('btnGuardar').disabled = true;
-        } else {
-            // REQUISITO B: Caso abierto → los valores se PUEDEN actualizar
-            habilitarCampos(true);
-            document.getElementById('btnGuardar').disabled = false;
-
-            // Pero mantener read-only los campos fijos (expediente, etapa, fecha, nombre etapa)
-            document.getElementById('noexpediente').disabled = true;
-            document.getElementById('noetapa').readOnly = true;
-            document.getElementById('fechaetapa').disabled = true;
-            document.getElementById('nombreetapa').readOnly = true;
-        }
     }
-
 
     function cargarDetalleExpediente(exp) {
         const params = new URLSearchParams({
@@ -633,12 +576,76 @@
 
         fetch("{% url 'clientes:obtener_expediente_detalle' %}?" + params.toString())
             .then(response => response.json())
-            .then(data => {
+            .then(async data => {
                 if (data.success) {
+                    // Asignar campos principales
+                    document.getElementById('noetapa').value = exp.ninstancia || '';
+                    document.getElementById('fechaetapa').value = exp.fechaapertura || '';
+                    document.getElementById('nombreetapa').value = exp.estadoexpediente || '';
+                    document.getElementById('instancia').value = exp.ninstancia || '';
+
+
+                    // Habilitar/deshabilitar campos según estado del caso
+                    let editable = true;
+                    if (casoActual && casoActual.fechafin) editable = false;
+                    habilitarCampos(editable);
+                    document.getElementById('btnGuardar').disabled = !editable;
+
+                    // Impugnación: solo editable si etapa es de impugnación y caso abierto
+                    const campoImpugnacion = document.getElementById('impugnacion');
+                    if (campoImpugnacion) {
+                        // Detectar si la etapa es de impugnación
+                        const esImpugnacion = (exp.estadoexpediente || '').toLowerCase().includes('impugnacion');
+                        if (editable && esImpugnacion) {
+                            campoImpugnacion.disabled = false;
+                            // Cargar impugnaciones válidas si corresponde
+                            cargarImpugnacionesEspecializacion(exp.codespecializacion, exp.ninstancia);
+                        } else {
+                            campoImpugnacion.disabled = true;
+                        }
+                    }
+
+                    // Lógica dinámica de instancia/impugnación
+                    if (typeof actualizarInstanciaEImpugnacion === 'function') {
+                        actualizarInstanciaEImpugnacion(
+                            exp.estadoexpediente,
+                            exp.codespecializacion,
+                            exp.ninstancia
+                        );
+                    }
+
+                    // Abogado
+                    await cargarAbogados(exp.codespecializacion);
+                    document.getElementById('abogado').value = exp.cedula || '';
+
+                    // Ciudad y entidad (sin parpadeos)
+                    const campoCiudad = document.getElementById('ciudad');
+                    const campoEntidad = document.getElementById('entidad');
+                    if (campoCiudad) {
+                        // Asignar ciudad directamente
+                        if (exp.codciudad && campoCiudad.querySelector(`option[value='${exp.codciudad}']`)) {
+                            campoCiudad.value = exp.codciudad;
+                        } else {
+                            campoCiudad.value = '';
+                        }
+                        // Asignar entidad directamente (solo la del expediente)
+                        if (exp.codlugar && exp.entidad) {
+                            campoEntidad.innerHTML = `<option value="${exp.codlugar}">${exp.entidad}</option>`;
+                            campoEntidad.value = exp.codlugar;
+                            campoEntidad.disabled = !editable ? true : false;
+                        } else {
+                            campoEntidad.innerHTML = '<option value="">-- Seleccione ciudad primero --</option>';
+                            campoEntidad.value = '';
+                        }
+                    }
+
+                    // Impugnación
+                    document.getElementById('impugnacion').value = exp.idimpugna || '';
+
                     // Mostrar sucesos
                     const sucesoContainer = document.getElementById('sucesoContainer');
                     if (data.sucesos && data.sucesos.length > 0) {
-                        sucesoContainer.innerHTML = data.sucesos.map(s => `<div class=\"mb-2 p-1 border-bottom\"><small>${s.DESCSUCESO}</small></div>`).join('');
+                        sucesoContainer.innerHTML = data.sucesos.map(s => `<div class="mb-2 p-1 border-bottom"><small>${s.DESCSUCESO}</small></div>`).join('');
                     } else {
                         sucesoContainer.innerHTML = '<small class="text-muted">El suceso aparece aquí...</small>';
                     }
@@ -650,18 +657,24 @@
                             `<div class="mb-2 p-1 border-bottom"><small>${r.DESCRESUL}</small></div>`
                         ).join('');
                     } else {
-                        resultadoContainer.innerHTML = '<small class="text-muted">Sin resultados</small>';
+                        resultadoContainer.innerHTML = '';
                     }
 
-                    // Mostrar documentos
+                    // Mostrar todos los documentos
                     const docsContainer = document.getElementById('listaDocumentos');
                     if (data.documentos && data.documentos.length > 0) {
+                        console.log('Documentos cargados:', data.documentos);  // DEBUG
                         docsContainer.innerHTML = data.documentos.map(d =>
-                            `<a href="#" class="list-group-item list-group-item-action d-flex align-items-center py-1"
-                                onclick="verPDF('${d.UBICADOC}', event)">
-                                <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
-                                <small>${d.NOMDOC || 'Documento ' + d.CONDOC}</small>
-                            </a>`
+                            `<div class="list-group-item d-flex align-items-center py-1">
+                                <a href="#" class="flex-grow-1 d-flex align-items-center text-decoration-none"
+                                    onclick="verPDF('/media/${d.UBICADOC}', event)">
+                                    <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
+                                    <small>${d.NOMDOC || 'Documento ' + d.CONDOC}</small>
+                                </a>
+                                ${editable ? `<button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="eliminarDocumento('${d.CODESPECIALIZACION}', '${d.NOCASO}', '${d.NINSTANCIA}', '${d.CONSECEXPE}', '${d.CONDOC}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>` : ''}
+                            </div>`
                         ).join('');
                     } else {
                         docsContainer.innerHTML = '<small class="text-muted">Sin documentos</small>';
@@ -793,6 +806,7 @@
 
         if (!ciudad) {
             selectEntidad.innerHTML = '<option value="">-- Seleccione ciudad primero --</option>';
+            selectEntidad.value = '';
             return;
         }
 
@@ -805,10 +819,12 @@
                     selectEntidad.disabled = false;
                 } else {
                     selectEntidad.innerHTML = '<option value="">No hay entidades</option>';
+                    selectEntidad.value = '';
                 }
             })
             .catch(error => {
                 selectEntidad.innerHTML = '<option value="">Error al cargar</option>';
+                selectEntidad.value = '';
                 console.error('Error:', error);
             });
     }
@@ -894,8 +910,11 @@
                 if (data.exito) {
                     mostrarAlerta(data.mensaje, 'success');
                     modoNuevoExpediente = false;
-                    // Recargar expedientes
-                    cargarExpedientesCaso(casoActual.nocaso);
+                    // Limpiar input de documentos después de guardar
+                    document.getElementById('documentoInput').value = '';
+                    document.getElementById('listaDocumentosNuevos').innerHTML = '<small class="text-muted">Sin documentos seleccionados</small>';
+                    // Recargar expedientes y mantener el actual seleccionado
+                    cargarExpedientesCaso(casoActual.nocaso, expedienteActual ? expedienteActual.consecexpe : null);
                 } else {
                     mostrarAlerta(data.mensaje || 'Error al guardar', 'danger');
                 }
@@ -970,53 +989,33 @@
     function actualizarInstanciaEImpugnacion(etapa, codespecializacion, ninstancia) {
         const instanciaSelect = document.getElementById('instancia');
         const impugnacionSelect = document.getElementById('impugnacion');
-        // Por defecto, ambos deshabilitados y en null
-        if (instanciaSelect) {
-            instanciaSelect.value = '';
-            instanciaSelect.disabled = true;
-        }
-        if (impugnacionSelect) {
-            impugnacionSelect.value = '';
-            impugnacionSelect.disabled = true;
-        }
+        // Por defecto, deshabilitados y vacios
+        instanciaSelect.disabled = true;
+        instanciaSelect.value = '';
+        impugnacionSelect.disabled = true;
+        impugnacionSelect.value = '';
 
         // Si etapa es Sentencia
         if (etapa && etapa.toLowerCase() === 'sentencia') {
-            if (instanciaSelect) {
-                instanciaSelect.innerHTML = '<option value="Primera">Primera</option>';
-                instanciaSelect.value = 'Primera';
-                instanciaSelect.disabled = false;
-            }
+            instanciaSelect.value = '1';
         }
         // Si etapa es Impugnacion
         else if (etapa && etapa.toLowerCase().includes('impugnacion')) {
-            if (instanciaSelect) {
-                instanciaSelect.innerHTML = '<option value="Segunda">Segunda</option>';
-                instanciaSelect.value = 'Segunda';
-                instanciaSelect.disabled = false;
-            }
-            // Habilitar impugnacion y cargar solo válidas
-            if (impugnacionSelect) {
-                impugnacionSelect.disabled = false;
-                cargarImpugnacionesEspecializacion(codespecializacion, ninstancia);
-            }
+            instanciaSelect.value = '2';
+            // Habilitar impugnacion y cargar válidas
+            impugnacionSelect.disabled = false;
+            cargarImpugnacionesEspecializacion(codespecializacion, ninstancia);
         } else {
             // En cualquier otra etapa, instancia queda vacía y deshabilitada
-            if (instanciaSelect) {
-                instanciaSelect.innerHTML = '<option value="">-- Seleccione --</option>';
-                instanciaSelect.value = '';
-                instanciaSelect.disabled = true;
-            }
-            if (impugnacionSelect) {
-                impugnacionSelect.value = '';
-                impugnacionSelect.disabled = true;
-            }
+            instanciaSelect.value = '';
+            impugnacionSelect.value = '';
         }
     }
 
     // Paso 3: Cargar impugnaciones válidas según especialización y instancia desde ESPECIA_ETAPA
     function cargarImpugnacionesEspecializacion(codespecializacion, ninstancia) {
         const impugnacionSelect = document.getElementById('impugnacion');
+
         impugnacionSelect.innerHTML = '<option value="">-- Ninguna --</option>';
         // Endpoint a implementar en el backend
         fetch(`/clientes/expediente/impugnaciones_validas/?codespecializacion=${encodeURIComponent(codespecializacion)}&ninstancia=${encodeURIComponent(ninstancia)}`)
@@ -1026,8 +1025,41 @@
                     data.impugnaciones.forEach(imp => {
                         impugnacionSelect.innerHTML += `<option value="${imp.IDIMPUGNA}">${imp.NOMIMPUGNA}</option>`;
                     });
+                    impugnacionSelect.value = data.default || '';
                     impugnacionSelect.disabled = false;
                 }
+            });
+    }
+
+    function eliminarDocumento(codespecializacion, nocaso, ninstancia, consecexpe, condoc) {
+        if (!confirm('¿Está seguro de eliminar este documento?')) return;
+
+        fetch("{% url 'clientes:eliminar_documento' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: new URLSearchParams({
+                codespecializacion: codespecializacion,
+                nocaso: nocaso,
+                ninstancia: ninstancia,
+                consecexpe: consecexpe,
+                condoc: condoc
+            })
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    mostrarAlerta(data.mensaje, 'success');
+                    // Recargar detalle del expediente
+                    cargarDetalleExpediente(expedienteActual);
+                } else {
+                    mostrarAlerta(data.error || 'Error al eliminar', 'danger');
+                }
+            })
+            .catch(error => {
+                mostrarAlerta('Error: ' + error, 'danger');
             });
     }
 </script>

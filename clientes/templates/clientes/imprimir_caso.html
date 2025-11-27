@@ -87,6 +87,19 @@
                     </ul>
                 </div>
             </div>
+
+            <div class="row">
+                <div class="col-md-12">
+                    <h6>Documentos</h6>
+                    <ul>
+                        {% for doc in exp.documentos %}
+                        <li>{{ doc.NOMDOC }}</li>
+                        {% empty %}
+                        <li class="text-muted">Sin documentos</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
         </div>
         {% empty %}
         <p class="text-center text-muted">No hay expedientes registrados para este caso.</p>
