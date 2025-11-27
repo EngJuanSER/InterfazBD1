@@ -82,6 +82,9 @@
                                             <i class="bi bi-search"></i>
                                         </button>
                                     </div>
+                                    <div id="estadoCasoIndicador" class="mt-2" style="display:none;">
+                                        <span id="estadoCasoTexto" class="badge"></span>
+                                    </div>
                                 </div>
 
                                 <!-- Abogado -->
@@ -137,7 +140,9 @@
                                 <h6 class="mb-0"><i class="bi bi-chat-left-text me-1"></i>Suceso</h6>
                             </div>
                             <div class="card-body p-2">
-                                <div id="sucesoContainer" class="border rounded p-2" style="min-height: 120px; max-height: 150px; overflow-y: auto; background-color: #f8f9fa;" ondblclick="abrirEditor('suceso')">
+                                <div id="sucesoContainer" class="border rounded p-2"
+                                    style="min-height: 120px; max-height: 150px; overflow-y: auto; background-color: #f8f9fa;"
+                                    ondblclick="abrirEditor('suceso')">
                                     <small class="text-muted">El suceso aparece aquí...</small>
                                 </div>
                             </div>
@@ -156,24 +161,28 @@
                                     ondblclick="abrirEditor('resultado')">
                                     <small class="text-muted">Los resultados aparecen aqui...</small>
                                 </div>
-<!-- Modal Editor para Suceso y Resultado -->
-<div class="modal fade" id="modalEditor" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalEditorTitulo">Editor</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <textarea id="editorTexto" class="form-control" rows="12" style="resize:vertical;"></textarea>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-success" id="btnGuardarEditor">Guardar</button>
-            </div>
-        </div>
-    </div>
-</div>
+                                <!-- Modal Editor para Suceso y Resultado -->
+                                <div class="modal fade" id="modalEditor" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-lg">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="modalEditorTitulo">Editor</h5>
+                                                <button type="button" class="btn-close"
+                                                    data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <textarea id="editorTexto" class="form-control" rows="12"
+                                                    style="resize:vertical;"></textarea>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary"
+                                                    data-bs-dismiss="modal">Cancelar</button>
+                                                <button type="button" class="btn btn-success"
+                                                    id="btnGuardarEditor">Guardar</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -192,7 +201,8 @@
                                 </div>
                                 <div class="mt-2 border-top pt-2" id="uploadContainer" style="display:none;">
                                     <label class="form-label small fw-bold">Subir PDF(s):</label>
-                                    <input type="file" class="form-control form-control-sm" id="documentoInput" accept=".pdf" multiple>
+                                    <input type="file" class="form-control form-control-sm" id="documentoInput"
+                                        accept=".pdf" multiple>
                                     <div class="form-text">Puede seleccionar uno o varios archivos PDF, o ninguno.</div>
                                     <div id="listaDocumentosNuevos" class="list-group list-group-flush mt-2"></div>
                                 </div>
@@ -259,10 +269,14 @@
         if (campo === 'suceso') {
             const sucesoContainer = document.getElementById('sucesoContainer');
             let textos = Array.from(sucesoContainer.querySelectorAll('small')).map(e => e.innerText);
+            // Filtrar el placeholder si existe
+            textos = textos.filter(t => t !== 'El suceso aparece aquí...');
             document.getElementById('editorTexto').value = textos.join('\n---\n');
         } else if (campo === 'resultado') {
             const resultadoContainer = document.getElementById('resultadoContainer');
             let textos = Array.from(resultadoContainer.querySelectorAll('small')).map(e => e.innerText);
+            // Filtrar el placeholder si existe
+            textos = textos.filter(t => t !== 'Sin resultados.');
             document.getElementById('editorTexto').value = textos.join('\n---\n');
         }
         // El textarea solo es editable si el caso está abierto
@@ -276,8 +290,8 @@
         modal.show();
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('btnGuardarEditor').onclick = function() {
+    document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('btnGuardarEditor').onclick = function () {
             // Solo guardar si el textarea no es readOnly
             const editorTexto = document.getElementById('editorTexto');
             if (editorTexto.readOnly) {
@@ -299,13 +313,13 @@
         // Botón cancelar: solo cierra el modal, no modifica nada
         const btnCancelar = document.querySelector('#modalEditor .btn-secondary');
         if (btnCancelar) {
-            btnCancelar.onclick = function() {
+            btnCancelar.onclick = function () {
                 bootstrap.Modal.getInstance(document.getElementById('modalEditor')).hide();
             };
         }
 
         // Mostrar lista de PDFs seleccionados y permitir visualizarlos
-        document.getElementById('documentoInput').addEventListener('change', function() {
+        document.getElementById('documentoInput').addEventListener('change', function () {
             const lista = document.getElementById('listaDocumentosNuevos');
             lista.innerHTML = '';
             const files = this.files;
@@ -320,7 +334,7 @@
                 item.href = '#';
                 item.className = 'list-group-item list-group-item-action d-flex align-items-center py-1';
                 item.innerHTML = `<i class='bi bi-file-earmark-pdf text-danger me-2'></i><small>${file.name}</small>`;
-                item.onclick = function(e) {
+                item.onclick = function (e) {
                     e.preventDefault();
                     const url = URL.createObjectURL(file);
                     document.getElementById('visorPDF').src = url;
@@ -348,10 +362,10 @@
                 descsuceso: texto
             })
         })
-        .then(r => r.json())
-        .then(d => {
-            if (!d.success) mostrarAlerta('Error guardando suceso: ' + d.error, 'danger');
-        });
+            .then(r => r.json())
+            .then(d => {
+                if (!d.success) mostrarAlerta('Error guardando suceso: ' + d.error, 'danger');
+            });
     }
 
     function guardarResultadoSQLRaw(texto) {
@@ -370,10 +384,10 @@
                 descresul: texto
             })
         })
-        .then(r => r.json())
-        .then(d => {
-            if (!d.success) mostrarAlerta('Error guardando resultado: ' + d.error, 'danger');
-        });
+            .then(r => r.json())
+            .then(d => {
+                if (!d.success) mostrarAlerta('Error guardando resultado: ' + d.error, 'danger');
+            });
     }
 
     // Utilidad para CSRF
@@ -411,6 +425,18 @@
                     casoActual = data.caso;
                     console.log('Caso cargado:', casoActual); // DEBUG
 
+                    // Mostrar indicador de estado del caso
+                    const indicador = document.getElementById('estadoCasoIndicador');
+                    const textoEstado = document.getElementById('estadoCasoTexto');
+                    indicador.style.display = 'block';
+                    if (data.caso.fechafin) {
+                        textoEstado.className = 'badge bg-danger';
+                        textoEstado.textContent = '🔒 CASO CERRADO (Fecha Fin: ' + data.caso.fechafin + ') - Solo consulta';
+                    } else {
+                        textoEstado.className = 'badge bg-success';
+                        textoEstado.textContent = '✓ CASO ABIERTO - Editable';
+                    }
+
                     mostrarAlerta('Caso encontrado: ' + data.caso.tipocaso + ' - ' + data.caso.cliente, 'success');
 
                     // Cargar abogados directamente con codespecializacion del caso
@@ -425,13 +451,13 @@
                     // Si el caso tiene fecha fin (cerrado), deshabilitar creación
                     if (data.caso.fechafin) {
                         document.getElementById('btnCrearExpe').disabled = true;
-                        mostrarAlerta('Caso cerrado. Solo consulta.', 'info');
                     } else {
                         document.getElementById('btnCrearExpe').disabled = false;
                     }
                 } else {
                     casoActual = null;
                     limpiarCamposExpediente();
+                    document.getElementById('estadoCasoIndicador').style.display = 'none';
                     mostrarAlerta('Caso no encontrado', 'warning');
                 }
             })
@@ -575,10 +601,25 @@
             cargarDetalleExpediente(expedienteActual);
         }
 
-        // Deshabilitar campos en modo consulta
-        habilitarCampos(false);
-        const btnGuardar = document.getElementById('btnGuardar');
-        if (btnGuardar) btnGuardar.disabled = true;
+        // REQUISITO A: Si caso tiene FECHAFIN, deshabilitar TODOS los campos (solo navegación)
+        // REQUISITO B: Si caso NO tiene FECHAFIN, permitir edición
+        const casoTieneFechaFin = casoActual && casoActual.fechafin;
+
+        if (casoTieneFechaFin) {
+            // Caso cerrado: Solo navegación, sin edición
+            habilitarCampos(false);
+            document.getElementById('btnGuardar').disabled = true;
+        } else {
+            // REQUISITO B: Caso abierto → los valores se PUEDEN actualizar
+            habilitarCampos(true);
+            document.getElementById('btnGuardar').disabled = false;
+
+            // Pero mantener read-only los campos fijos (expediente, etapa, fecha, nombre etapa)
+            document.getElementById('noexpediente').disabled = true;
+            document.getElementById('noetapa').readOnly = true;
+            document.getElementById('fechaetapa').disabled = true;
+            document.getElementById('nombreetapa').readOnly = true;
+        }
     }
 
 
@@ -646,6 +687,22 @@
             return;
         }
 
+        // REQUISITO F: Solo permitir crear nuevo expediente si no hay expedientes sin guardar
+        if (modoNuevoExpediente) {
+            mostrarAlerta('Debe guardar el expediente actual antes de crear otro', 'warning');
+            return;
+        }
+
+        // Verificar si el último expediente fue guardado (si hay expedientes)
+        if (expedientes.length > 0) {
+            // El último expediente debe tener datos completos para poder crear otro
+            const ultimoExp = expedientes[expedientes.length - 1];
+            if (!ultimoExp.consecexpe || ultimoExp.consecexpe === 'nuevo') {
+                mostrarAlerta('Complete y guarde el expediente actual antes de crear otro', 'warning');
+                return;
+            }
+        }
+
         modoNuevoExpediente = true;
         expedienteActual = null;
 
@@ -692,11 +749,11 @@
                 }
             });
 
-        // Limpiar areas de texto
-        const campoSuceso = document.getElementById('suceso');
-        if (campoSuceso) campoSuceso.value = '';
+        // Limpiar áreas de texto y quitar placeholders
+        const sucesoContainer = document.getElementById('sucesoContainer');
+        if (sucesoContainer) sucesoContainer.innerHTML = '';
         const resultadoContainer = document.getElementById('resultadoContainer');
-        if (resultadoContainer) resultadoContainer.innerHTML = '<small class="text-muted">Sin resultados</small>';
+        if (resultadoContainer) resultadoContainer.innerHTML = '';
         const listaDocumentos = document.getElementById('listaDocumentos');
         if (listaDocumentos) listaDocumentos.innerHTML = '<small class="text-muted">Sin documentos</small>';
 
@@ -777,8 +834,10 @@
             return;
         }
 
-        if (!modoNuevoExpediente) {
-            mostrarAlerta('Los expedientes existentes son solo consulta', 'warning');
+        // REQUISITO B: Permitir guardar expedientes existentes si el caso está abierto
+        // Solo bloquear si el caso tiene fecha fin
+        if (casoActual.fechafin) {
+            mostrarAlerta('No se puede modificar un caso cerrado', 'warning');
             return;
         }
 
@@ -791,8 +850,16 @@
             return;
         }
 
-        const descsuceso = document.getElementById('suceso').value;
+        // Extraer suceso del contenedor (no hay campo input 'suceso')
+        const sucesoContainer = document.getElementById('sucesoContainer');
+        const textosSucceso = Array.from(sucesoContainer.querySelectorAll('small, div')).map(e => e.innerText).filter(t => t && t !== 'El suceso aparece aquí...');
+        const descsuceso = textosSucceso.join('\\n');
+
         const documentoInput = document.getElementById('documentoInput');
+
+        // Determinar si es CREATE o UPDATE
+        const esNuevo = modoNuevoExpediente;
+        const url = esNuevo ? "{% url 'clientes:crear_expediente' %}" : "{% url 'clientes:actualizar_expediente' %}";
 
         const formData = new FormData();
         formData.append('nocaso', casoActual.nocaso.toString());
@@ -801,16 +868,24 @@
         formData.append('fechaetapa', fechaetapa || new Date().toISOString().split('T')[0]);
         formData.append('descsuceso', descsuceso || '');
 
-
-        // Permitir cualquier cantidad de documentos (incluyendo 0)
-        for (let i = 0; i < documentoInput.files.length; i++) {
-            formData.append('documento' + (i + 1), documentoInput.files[i]);
+        // Si es UPDATE, enviar las claves compuestas
+        if (!esNuevo && expedienteActual) {
+            formData.append('codespecializacion', expedienteActual.codespecializacion);
+            formData.append('ninstancia', expedienteActual.ninstancia);
+            formData.append('consecexpe', expedienteActual.consecexpe);
         }
 
-        fetch("{% url 'clientes:crear_expediente' %}", {
+        // Permitir cualquier cantidad de documentos (incluyendo 0)
+        if (documentoInput && documentoInput.files) {
+            for (let i = 0; i < documentoInput.files.length; i++) {
+                formData.append('documento1', documentoInput.files[i]);
+            }
+        }
+
+        fetch(url, {
             method: 'POST',
             headers: {
-                'X-CSRFToken': csrftoken
+                'X-CSRFToken': getCookie('csrftoken')
             },
             body: formData
         })
@@ -861,8 +936,8 @@
         if (campoEntidad) campoEntidad.innerHTML = '<option value="">-- Seleccione ciudad primero --</option>';
         const campoImpugnacion = document.getElementById('impugnacion');
         if (campoImpugnacion) campoImpugnacion.value = '';
-        const campoSuceso = document.getElementById('suceso');
-        if (campoSuceso) campoSuceso.value = '';
+        const sucesoContainer = document.getElementById('sucesoContainer');
+        if (sucesoContainer) sucesoContainer.innerHTML = '<small class="text-muted">El suceso aparece aquí...</small>';
         const resultadoContainer = document.getElementById('resultadoContainer');
         if (resultadoContainer) resultadoContainer.innerHTML = '<small class="text-muted">Sin resultados</small>';
         const listaDocumentos = document.getElementById('listaDocumentos');
@@ -892,43 +967,11 @@
     }
 
     // Paso 1: Lógica dinámica para Instancia e Impugnación según etapa
-function actualizarInstanciaEImpugnacion(etapa, codespecializacion, ninstancia) {
-    const instanciaSelect = document.getElementById('instancia');
-    const impugnacionSelect = document.getElementById('impugnacion');
-    // Por defecto, ambos deshabilitados y en null
-    if (instanciaSelect) {
-        instanciaSelect.value = '';
-        instanciaSelect.disabled = true;
-    }
-    if (impugnacionSelect) {
-        impugnacionSelect.value = '';
-        impugnacionSelect.disabled = true;
-    }
-
-    // Si etapa es Sentencia
-    if (etapa && etapa.toLowerCase() === 'sentencia') {
+    function actualizarInstanciaEImpugnacion(etapa, codespecializacion, ninstancia) {
+        const instanciaSelect = document.getElementById('instancia');
+        const impugnacionSelect = document.getElementById('impugnacion');
+        // Por defecto, ambos deshabilitados y en null
         if (instanciaSelect) {
-            instanciaSelect.innerHTML = '<option value="Primera">Primera</option>';
-            instanciaSelect.value = 'Primera';
-            instanciaSelect.disabled = false;
-        }
-    }
-    // Si etapa es Impugnacion
-    else if (etapa && etapa.toLowerCase().includes('impugnacion')) {
-        if (instanciaSelect) {
-            instanciaSelect.innerHTML = '<option value="Segunda">Segunda</option>';
-            instanciaSelect.value = 'Segunda';
-            instanciaSelect.disabled = false;
-        }
-        // Habilitar impugnacion y cargar solo válidas
-        if (impugnacionSelect) {
-            impugnacionSelect.disabled = false;
-            cargarImpugnacionesEspecializacion(codespecializacion, ninstancia);
-        }
-    } else {
-        // En cualquier otra etapa, instancia queda vacía y deshabilitada
-        if (instanciaSelect) {
-            instanciaSelect.innerHTML = '<option value="">-- Seleccione --</option>';
             instanciaSelect.value = '';
             instanciaSelect.disabled = true;
         }
@@ -936,25 +979,57 @@ function actualizarInstanciaEImpugnacion(etapa, codespecializacion, ninstancia) 
             impugnacionSelect.value = '';
             impugnacionSelect.disabled = true;
         }
-    }
-}
 
-// Paso 3: Cargar impugnaciones válidas según especialización y instancia desde ESPECIA_ETAPA
-function cargarImpugnacionesEspecializacion(codespecializacion, ninstancia) {
-    const impugnacionSelect = document.getElementById('impugnacion');
-    impugnacionSelect.innerHTML = '<option value="">-- Ninguna --</option>';
-    // Endpoint a implementar en el backend
-    fetch(`/clientes/expediente/impugnaciones_validas/?codespecializacion=${encodeURIComponent(codespecializacion)}&ninstancia=${encodeURIComponent(ninstancia)}`)
-        .then(r => r.json())
-        .then(data => {
-            if (data.success && data.impugnaciones) {
-                data.impugnaciones.forEach(imp => {
-                    impugnacionSelect.innerHTML += `<option value="${imp.IDIMPUGNA}">${imp.NOMIMPUGNA}</option>`;
-                });
-                impugnacionSelect.disabled = false;
+        // Si etapa es Sentencia
+        if (etapa && etapa.toLowerCase() === 'sentencia') {
+            if (instanciaSelect) {
+                instanciaSelect.innerHTML = '<option value="Primera">Primera</option>';
+                instanciaSelect.value = 'Primera';
+                instanciaSelect.disabled = false;
             }
-        });
-}
+        }
+        // Si etapa es Impugnacion
+        else if (etapa && etapa.toLowerCase().includes('impugnacion')) {
+            if (instanciaSelect) {
+                instanciaSelect.innerHTML = '<option value="Segunda">Segunda</option>';
+                instanciaSelect.value = 'Segunda';
+                instanciaSelect.disabled = false;
+            }
+            // Habilitar impugnacion y cargar solo válidas
+            if (impugnacionSelect) {
+                impugnacionSelect.disabled = false;
+                cargarImpugnacionesEspecializacion(codespecializacion, ninstancia);
+            }
+        } else {
+            // En cualquier otra etapa, instancia queda vacía y deshabilitada
+            if (instanciaSelect) {
+                instanciaSelect.innerHTML = '<option value="">-- Seleccione --</option>';
+                instanciaSelect.value = '';
+                instanciaSelect.disabled = true;
+            }
+            if (impugnacionSelect) {
+                impugnacionSelect.value = '';
+                impugnacionSelect.disabled = true;
+            }
+        }
+    }
+
+    // Paso 3: Cargar impugnaciones válidas según especialización y instancia desde ESPECIA_ETAPA
+    function cargarImpugnacionesEspecializacion(codespecializacion, ninstancia) {
+        const impugnacionSelect = document.getElementById('impugnacion');
+        impugnacionSelect.innerHTML = '<option value="">-- Ninguna --</option>';
+        // Endpoint a implementar en el backend
+        fetch(`/clientes/expediente/impugnaciones_validas/?codespecializacion=${encodeURIComponent(codespecializacion)}&ninstancia=${encodeURIComponent(ninstancia)}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.impugnaciones) {
+                    data.impugnaciones.forEach(imp => {
+                        impugnacionSelect.innerHTML += `<option value="${imp.IDIMPUGNA}">${imp.NOMIMPUGNA}</option>`;
+                    });
+                    impugnacionSelect.disabled = false;
+                }
+            });
+    }
 </script>
 
 <!-- Modal para visor PDF (fuera del script) -->

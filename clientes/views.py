@@ -1,27 +1,3 @@
-# =============================================================================
-# IMPUGNACIONES VALIDAS SEGUN ESPECIALIZACION E INSTANCIA
-# =============================================================================
-from django.views.decorators.http import require_GET
-
-@require_GET
-def impugnaciones_validas(request):
-    """Devuelve impugnaciones válidas para una especialización e instancia, según ESPECIA_ETAPA"""
-    codespecializacion = request.GET.get('codespecializacion', '').strip()
-    ninstancia = request.GET.get('ninstancia', '').strip()
-    if not codespecializacion or not ninstancia:
-        return JsonResponse({'success': False, 'error': 'Faltan parámetros'})
-    with connection.cursor() as cursor:
-        # Buscar impugnaciones válidas para la especialización e instancia
-        cursor.execute('''
-            SELECT DISTINCT i.IDIMPUGNA, i.NOMIMPUGNA
-            FROM ESPECIA_ETAPA ee
-            JOIN IMPUGNACION i ON ee.IDIMPUGNA = i.IDIMPUGNA
-            WHERE ee.CODESPECIALIZACION = :codespecializacion
-              AND ee.NINSTANCIA = :ninstancia
-            ORDER BY i.NOMIMPUGNA
-        ''', {'codespecializacion': codespecializacion, 'ninstancia': ninstancia})
-        impugnaciones = dictfetchall(cursor)
-    return JsonResponse({'success': True, 'impugnaciones': impugnaciones})
 """
 Vistas para el Sistema de Gestion Legal
 Usando SQL RAW para cumplir con los requerimientos de la sustentacion
@@ -33,6 +9,7 @@ from django.db import connection
 from datetime import date
 import json
 from django.core.files.storage import FileSystemStorage
+from django.views.decorators.http import require_GET
 
 
 def dictfetchall(cursor):
@@ -48,6 +25,7 @@ def dictfetchone(cursor):
     if row:
         return dict(zip(columns, row))
     return None
+
 
 
 # =============================================================================
@@ -611,8 +589,33 @@ def obtener_proximo_consecutivo(request):
     return JsonResponse({'success': True, 'consecutivo': consecutivo})
 
 
+@require_GET
+def impugnaciones_validas(request):
+    """Devuelve impugnaciones válidas para una especialización e instancia, según ESPECIA_ETAPA"""
+    codespecializacion = request.GET.get('codespecializacion', '').strip()
+    ninstancia = request.GET.get('ninstancia', '').strip()
+    
+    if not codespecializacion or not ninstancia:
+        return JsonResponse({'success': False, 'error': 'Faltan parámetros'})
+    
+    with connection.cursor() as cursor:
+        # Buscar impugnaciones válidas para la especialización e instancia
+        cursor.execute("""
+            SELECT DISTINCT i.IDIMPUGNA, i.NOMIMPUGNA
+            FROM ESPECIA_ETAPA ee
+            JOIN IMPUGNACION i ON ee.IDIMPUGNA = i.IDIMPUGNA
+            WHERE ee.CODESPECIALIZACION = :codespecializacion
+              AND ee.NINSTANCIA = :ninstancia
+              AND ee.IDIMPUGNA IS NOT NULL
+            ORDER BY i.NOMIMPUGNA
+        """, {'codespecializacion': codespecializacion, 'ninstancia': ninstancia})
+        impugnaciones = dictfetchall(cursor)
+    
+    return JsonResponse({'success': True, 'impugnaciones': impugnaciones})
+
+
 def crear_expediente(request):
-    """Crear un nuevo expediente"""
+    """Crear un nuevo expediente usando composite primary keys"""
     if request.method != 'POST':
         return JsonResponse({'exito': False, 'mensaje': 'Metodo no permitido'})
     
@@ -622,7 +625,7 @@ def crear_expediente(request):
             data = json.loads(request.body)
         except json.JSONDecodeError:
             return JsonResponse({'exito': False, 'mensaje': 'Datos invalidos'})
-        documento_file = None
+        documentos_files = []
     else:
         data = request.POST
         documentos_files = request.FILES.getlist('documento1')
@@ -657,10 +660,10 @@ def crear_expediente(request):
             
             codespecializacion = row[0]
             
-            # Asumimos NINSTANCIA = 1 por defecto (Primera Instancia)
+            # NINSTANCIA = 1 por defecto (Primera Instancia)
             ninstancia = 1
             
-            # Obtener siguiente consecutivo de expediente para este caso
+            # Obtener siguiente consecutivo de expediente
             cursor.execute("""
                 SELECT NVL(MAX(CONSECEXPE), 0) + 1 
                 FROM EXPEDIENTE 
@@ -670,6 +673,7 @@ def crear_expediente(request):
             """, {'nocaso': nocaso, 'codespecializacion': codespecializacion, 'ninstancia': ninstancia})
             consecexpe = cursor.fetchone()[0]
             
+            # Insertar expediente
             cursor.execute("""
                 INSERT INTO EXPEDIENTE (NOCASO, CODESPECIALIZACION, NINSTANCIA, CONSECEXPE, CEDULA, CODLUGAR, FECHAETAPA)
                 VALUES (:nocaso, :codespecializacion, :ninstancia, :consecexpe, :cedula, :codlugar, TO_DATE(:fechaetapa, 'YYYY-MM-DD'))
@@ -682,65 +686,202 @@ def crear_expediente(request):
                 'codlugar': codlugar,
                 'fechaetapa': fechaetapa
             })
-            # Obtener el ID_EXPEDIENTE recién creado
-            cursor.execute("""
-                SELECT ID_EXPEDIENTE FROM EXPEDIENTE
-                WHERE NOCASO = :nocaso AND CODESPECIALIZACION = :codespecializacion
-                  AND NINSTANCIA = :ninstancia AND CONSECEXPE = :consecexpe
-            """, {
-                'nocaso': nocaso,
-                'codespecializacion': codespecializacion,
-                'ninstancia': ninstancia,
-                'consecexpe': consecexpe
-            })
-            id_expediente = cursor.fetchone()[0]
-            # Guardar Suceso si existe
+            
+            # Guardar Suceso si existe (usando composite PK)
             if descsuceso:
                 cursor.execute("""
                     SELECT NVL(MAX(CONSUCESO), 0) + 1 
                     FROM SUCESO 
-                    WHERE ID_EXPEDIENTE = :id_expediente
+                    WHERE CODESPECIALIZACION = :codespecializacion
+                      AND NOCASO = :nocaso
+                      AND NINSTANCIA = :ninstancia
+                      AND CONSECEXPE = :consecexpe
                 """, {
-                    'id_expediente': id_expediente
+                    'codespecializacion': codespecializacion,
+                    'nocaso': nocaso,
+                    'ninstancia': ninstancia,
+                    'consecexpe': consecexpe
                 })
                 consuceso = cursor.fetchone()[0]
                 cursor.execute("""
-                    INSERT INTO SUCESO (ID_EXPEDIENTE, CONSUCESO, DESCSUCESO)
-                    VALUES (:id_expediente, :consuceso, :descsuceso)
+                    INSERT INTO SUCESO (CODESPECIALIZACION, NOCASO, NINSTANCIA, CONSECEXPE, CONSUCESO, DESCSUCESO)
+                    VALUES (:codespecializacion, :nocaso, :ninstancia, :consecexpe, :consuceso, :descsuceso)
                 """, {
-                    'id_expediente': id_expediente,
+                    'codespecializacion': codespecializacion,
+                    'nocaso': nocaso,
+                    'ninstancia': ninstancia,
+                    'consecexpe': consecexpe,
                     'consuceso': consuceso,
                     'descsuceso': descsuceso
                 })
-            # Guardar múltiples Documentos si existen
+            
+            # Guardar múltiples Documentos si existen (usando composite PK)
             if documentos_files:
                 fs = FileSystemStorage()
-                # Obtener el siguiente consecutivo de documento
                 cursor.execute("""
                     SELECT NVL(MAX(CONDOC), 0) 
                     FROM DOCUMENTO 
-                    WHERE ID_EXPEDIENTE = :id_expediente
+                    WHERE CODESPECIALIZACION = :codespecializacion
+                      AND NOCASO = :nocaso
+                      AND NINSTANCIA = :ninstancia
+                      AND CONSECEXPE = :consecexpe
                 """, {
-                    'id_expediente': id_expediente
+                    'codespecializacion': codespecializacion,
+                    'nocaso': nocaso,
+                    'ninstancia': ninstancia,
+                    'consecexpe': consecexpe
                 })
                 condoc = cursor.fetchone()[0] or 0
+                
                 for archivo in documentos_files:
                     condoc += 1
-                    filename = fs.save(f'documentos/caso_{nocaso}/{archivo.name}', archivo)
-                    file_url = fs.url(filename)
+                    # Shorten filename to fit in UBICADOC (VARCHAR2(50))
+                    # Path: docs/C{nocaso}/{filename}
+                    # Max path prefix: docs/C12345/ (12 chars) -> leaves 38 chars for filename
+                    
+                    ext = archivo.name.split('.')[-1]
+                    name_only = archivo.name.rsplit('.', 1)[0]
+                    
+                    # Truncate name if too long (keep extension)
+                    max_name_len = 30 # Safe limit
+                    if len(name_only) > max_name_len:
+                        name_only = name_only[:max_name_len]
+                    
+                    short_name = f"{name_only}.{ext}"
+                    
+                    # Use shorter directory structure
+                    save_path = f'docs/C{nocaso}/{short_name}'
+                    
+                    # Check total length just in case
+                    if len(save_path) > 50:
+                        # Super truncate if still too long
+                        remaining = 50 - len(f'docs/C{nocaso}/') - len(ext) - 1
+                        short_name = f"{name_only[:remaining]}.{ext}"
+                        save_path = f'docs/C{nocaso}/{short_name}'
+
+                    # Save the file (this may return a different path, but we'll use our controlled one)
+                    _ = fs.save(save_path, archivo)
+                    
                     cursor.execute("""
-                        INSERT INTO DOCUMENTO (ID_EXPEDIENTE, CONDOC, NOMDOC, UBICADOC)
-                        VALUES (:id_expediente, :condoc, :nomdoc, :ubicadoc)
+                        INSERT INTO DOCUMENTO (CODESPECIALIZACION, NOCASO, NINSTANCIA, CONSECEXPE, CONDOC, NOMDOC, UBICADOC)
+                        VALUES (:codespecializacion, :nocaso, :ninstancia, :consecexpe, :condoc, :nomdoc, :ubicadoc)
                     """, {
-                        'id_expediente': id_expediente,
+                        'codespecializacion': codespecializacion,
+                        'nocaso': nocaso,
+                        'ninstancia': ninstancia,
+                        'consecexpe': consecexpe,
                         'condoc': condoc,
-                        'nomdoc': archivo.name,
-                        'ubicadoc': file_url
+                        'nomdoc': short_name,
+                        'ubicadoc': save_path  # Use our controlled short path, NOT fs.save() return value
                     })
+        
         return JsonResponse({
             'exito': True, 
             'consecexpe': consecexpe, 
             'mensaje': f'Expediente {consecexpe} creado exitosamente'
+        })
+    except Exception as e:
+        return JsonResponse({'exito': False, 'mensaje': str(e)})
+
+
+def actualizar_expediente(request):
+    """Actualizar un expediente existente - Requisito B"""
+    if request.method != 'POST':
+        return JsonResponse({'exito': False, 'mensaje': 'Metodo no permitido'})
+    
+    # Recibir composite keys para identificar el expediente
+    codespecializacion = request.POST.get('codespecializacion', '').strip()
+    nocaso = request.POST.get('nocaso', '').strip()
+    ninstancia = request.POST.get('ninstancia', '').strip()
+    consecexpe = request.POST.get('consecexpe', '').strip()
+    
+    # Datos actualizables
+    cedula = request.POST.get('cedula', '').strip() or None
+    codlugar = request.POST.get('codlugar', '').strip()
+    
+    if not all([codespecializacion, nocaso, ninstancia, consecexpe]):
+        return JsonResponse({'exito': False, 'mensaje': 'Claves compuestas incompletas'})
+    
+    if not codlugar:
+        return JsonResponse({'exito': False, 'mensaje': 'Entidad requerida'})
+    
+    try:
+        with connection.cursor() as cursor:
+            # Actualizar expediente (solo campos editables: CEDULA, CODLUGAR)
+            cursor.execute("""
+                UPDATE EXPEDIENTE 
+                SET CEDULA = :cedula, CODLUGAR = :codlugar
+                WHERE CODESPECIALIZACION = :codespecializacion
+                  AND NOCASO = :nocaso
+                  AND NINSTANCIA = :ninstancia
+                  AND CONSECEXPE = :consecexpe
+            """, {
+                'cedula': cedula,
+                'codlugar': codlugar,
+                'codespecializacion': codespecializacion,
+                'nocaso': nocaso,
+                'ninstancia': ninstancia,
+                'consecexpe': consecexpe
+            })
+
+            # Guardar nuevos documentos si existen
+            documentos_files = []
+            for key in request.FILES:
+                if key.startswith('documento'):
+                    documentos_files.append(request.FILES[key])
+
+            if documentos_files:
+                fs = FileSystemStorage()
+                cursor.execute("""
+                    SELECT NVL(MAX(CONDOC), 0) 
+                    FROM DOCUMENTO 
+                    WHERE CODESPECIALIZACION = :codespecializacion
+                      AND NOCASO = :nocaso
+                      AND NINSTANCIA = :ninstancia
+                      AND CONSECEXPE = :consecexpe
+                """, {
+                    'codespecializacion': codespecializacion,
+                    'nocaso': nocaso,
+                    'ninstancia': ninstancia,
+                    'consecexpe': consecexpe
+                })
+                condoc = cursor.fetchone()[0] or 0
+                
+                for archivo in documentos_files:
+                    condoc += 1
+                    
+                    # Shorten filename logic (same as create)
+                    ext = archivo.name.split('.')[-1]
+                    name_only = archivo.name.rsplit('.', 1)[0]
+                    max_name_len = 30
+                    if len(name_only) > max_name_len:
+                        name_only = name_only[:max_name_len]
+                    short_name = f"{name_only}.{ext}"
+                    save_path = f'docs/C{nocaso}/{short_name}'
+                    if len(save_path) > 50:
+                        remaining = 50 - len(f'docs/C{nocaso}/') - len(ext) - 1
+                        short_name = f"{name_only[:remaining]}.{ext}"
+                        save_path = f'docs/C{nocaso}/{short_name}'
+
+                    # Save the file
+                    _ = fs.save(save_path, archivo)
+                    
+                    cursor.execute("""
+                        INSERT INTO DOCUMENTO (CODESPECIALIZACION, NOCASO, NINSTANCIA, CONSECEXPE, CONDOC, NOMDOC, UBICADOC)
+                        VALUES (:codespecializacion, :nocaso, :ninstancia, :consecexpe, :condoc, :nomdoc, :ubicadoc)
+                    """, {
+                        'codespecializacion': codespecializacion,
+                        'nocaso': nocaso,
+                        'ninstancia': ninstancia,
+                        'consecexpe': consecexpe,
+                        'condoc': condoc,
+                        'nomdoc': short_name,
+                        'ubicadoc': save_path  # Use controlled short path
+                    })
+        
+        return JsonResponse({
+            'exito': True,
+            'mensaje': f'Expediente {consecexpe} actualizado exitosamente'
         })
     except Exception as e:
         return JsonResponse({'exito': False, 'mensaje': str(e)})
@@ -847,7 +988,7 @@ def guardar_resultado(request):
 
 
 def obtener_expediente_detalle(request):
-    """Obtener detalle completo de un expediente"""
+    """Obtener detalle completo de un expediente usando composite primary keys"""
     codespecializacion = request.GET.get('codespecializacion', '').strip()
     nocaso = request.GET.get('nocaso', '').strip()
     ninstancia = request.GET.get('ninstancia', '').strip()
@@ -857,7 +998,7 @@ def obtener_expediente_detalle(request):
         return JsonResponse({'success': False, 'error': 'Datos incompletos'})
     
     with connection.cursor() as cursor:
-        # Datos del expediente (obtenemos ID_EXPEDIENTE)
+        # Datos del expediente
         cursor.execute("""
             SELECT ex.*, 
                    a.NOMBRE || ' ' || a.APELLIDO as ABOGADO_NOMBRE,
@@ -881,37 +1022,54 @@ def obtener_expediente_detalle(request):
         })
         expediente = dictfetchone(cursor)
         
-        if not expediente or 'ID_EXPEDIENTE' not in expediente:
+        if not expediente:
             return JsonResponse({'success': False, 'error': 'Expediente no encontrado'})
-        id_expediente = expediente['ID_EXPEDIENTE']
         
-        # Sucesos
+        # Sucesos (usando composite PK)
         cursor.execute("""
             SELECT * FROM SUCESO 
-            WHERE ID_EXPEDIENTE = :id_expediente
+            WHERE CODESPECIALIZACION = :codespecializacion
+              AND NOCASO = :nocaso
+              AND NINSTANCIA = :ninstancia
+              AND CONSECEXPE = :consecexpe
             ORDER BY CONSUCESO
         """, {
-            'id_expediente': id_expediente
+            'codespecializacion': codespecializacion,
+            'nocaso': nocaso,
+            'ninstancia': ninstancia,
+            'consecexpe': consecexpe
         })
         sucesos = dictfetchall(cursor)
         
-        # Resultados
+        # Resultados (usando composite PK)
         cursor.execute("""
             SELECT * FROM RESULTADO 
-            WHERE ID_EXPEDIENTE = :id_expediente
-            ORDER BY CONRESUL
+            WHERE CODESPECIALIZACION = :codespecializacion
+              AND NOCASO = :nocaso
+              AND NINSTANCIA = :ninstancia
+              AND CONSECEXPE = :consecexpe
+            ORDER BY CONSECRESUL
         """, {
-            'id_expediente': id_expediente
+            'codespecializacion': codespecializacion,
+            'nocaso': nocaso,
+            'ninstancia': ninstancia,
+            'consecexpe': consecexpe
         })
         resultados = dictfetchall(cursor)
         
-        # Documentos
+        # Documentos (usando composite PK)
         cursor.execute("""
             SELECT * FROM DOCUMENTO 
-            WHERE ID_EXPEDIENTE = :id_expediente
+            WHERE CODESPECIALIZACION = :codespecializacion
+              AND NOCASO = :nocaso
+              AND NINSTANCIA = :ninstancia
+              AND CONSECEXPE = :consecexpe
             ORDER BY CONDOC
         """, {
-            'id_expediente': id_expediente
+            'codespecializacion': codespecializacion,
+            'nocaso': nocaso,
+            'ninstancia': ninstancia,
+            'consecexpe': consecexpe
         })
         documentos = dictfetchall(cursor)
     
